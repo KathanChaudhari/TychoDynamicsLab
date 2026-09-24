@@ -556,16 +556,12 @@ export default function BasicScene() {
       handleCameraKeyDown
     );
 
-    // ==================================================
-    // Animation loop
-    // ==================================================
 
     const clock = new THREE.Clock();
 
     function animate() {
       const rawDeltaTime = clock.getDelta();
 
-      // Prevent large jumps after an inactive tab
       const deltaTime = Math.min(
         rawDeltaTime,
         1 / 30
@@ -591,10 +587,7 @@ export default function BasicScene() {
 
     renderer.setAnimationLoop(animate);
 
-    // ==================================================
-    // Resize handling
-    // ==================================================
-
+    
     function handleResize() {
       const width = container.clientWidth;
       const height = container.clientHeight;
@@ -618,10 +611,7 @@ export default function BasicScene() {
       handleResize
     );
 
-    // ==================================================
-    // Cleanup
-    // ==================================================
-
+  
     return () => {
       renderer.setAnimationLoop(null);
 
