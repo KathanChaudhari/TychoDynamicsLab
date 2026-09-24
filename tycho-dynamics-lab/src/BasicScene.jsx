@@ -12,10 +12,11 @@ export default function BasicScene() {
       return;
     }
 
+   
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x030712);
 
-
+   
     const camera = new THREE.PerspectiveCamera(
       60,
       container.clientWidth / container.clientHeight,
@@ -43,7 +44,7 @@ export default function BasicScene() {
 
     container.appendChild(renderer.domElement);
 
-
+   
     const controls = new OrbitControls(
       camera,
       renderer.domElement
@@ -53,11 +54,10 @@ export default function BasicScene() {
     controls.dampingFactor = 0.05;
 
     controls.minDistance = 3;
-    controls.maxDistance = 30;
+    controls.maxDistance = 40;
 
     controls.target.set(0, 0, -3);
     controls.update();
-
 
     const hemisphereLight = new THREE.HemisphereLight(
       0x9db7ff,
@@ -74,7 +74,7 @@ export default function BasicScene() {
 
     scene.add(hemisphereLight, sunLight);
 
-
+    
     const axesHelper = new THREE.AxesHelper(3);
 
     const gridHelper = new THREE.GridHelper(
@@ -89,7 +89,7 @@ export default function BasicScene() {
 
     scene.add(axesHelper, gridHelper);
 
-
+    
     const hullMaterial = new THREE.MeshStandardMaterial({
       color: 0x94a3b8,
       metalness: 0.7,
@@ -119,12 +119,14 @@ export default function BasicScene() {
 
     scene.add(spacecraft);
 
+
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(1.6, 0.8, 3),
       hullMaterial
     );
 
     spacecraft.add(body);
+
 
     const nose = new THREE.Mesh(
       new THREE.ConeGeometry(0.8, 1.2, 4),
@@ -136,6 +138,7 @@ export default function BasicScene() {
 
     spacecraft.add(nose);
 
+
     const leftWing = new THREE.Mesh(
       new THREE.BoxGeometry(2, 0.12, 1.4),
       darkMaterial
@@ -145,10 +148,12 @@ export default function BasicScene() {
 
     spacecraft.add(leftWing);
 
+
     const rightWing = leftWing.clone();
     rightWing.position.x = 1.5;
 
     spacecraft.add(rightWing);
+
 
     const engine = new THREE.Mesh(
       new THREE.CylinderGeometry(
@@ -164,7 +169,6 @@ export default function BasicScene() {
     engine.position.z = 1.6;
 
     spacecraft.add(engine);
-
 
     const dockingRingMaterial =
       new THREE.MeshStandardMaterial({
@@ -189,21 +193,21 @@ export default function BasicScene() {
     dockingRing.userData.label = "Docking ring";
 
     scene.add(dockingRing);
-    const ringMarkerMaterial =
+
+
+    const ringMarker = new THREE.Mesh(
+      new THREE.BoxGeometry(0.25, 0.7, 0.25),
       new THREE.MeshStandardMaterial({
         color: 0xf97316,
         emissive: 0x7c2d12,
         emissiveIntensity: 2,
-      });
-
-    const ringMarker = new THREE.Mesh(
-      new THREE.BoxGeometry(0.25, 0.7, 0.25),
-      ringMarkerMaterial
+      })
     );
 
     ringMarker.position.y = 2.4;
 
     dockingRing.add(ringMarker);
+
 
     const dockingLight = new THREE.PointLight(
       0x38bdf8,
@@ -215,7 +219,7 @@ export default function BasicScene() {
 
     scene.add(dockingLight);
 
-
+    
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
@@ -303,7 +307,212 @@ export default function BasicScene() {
       handlePointerDown
     );
 
+    
+    const spacecraftMass = 1000;
+    const thrustForce = 250;
+    const rotationSpeed = 1.2;
 
+    const velocity = new THREE.Vector3();
+    const acceleration = new THREE.Vector3();
+
+    const localThrust = new THREE.Vector3();
+    const worldThrust = new THREE.Vector3();
+
+    const movementDirection = new THREE.Vector3();
+
+    const pressedKeys = new Set();
+
+    const controlledKeys = new Set([
+      "KeyW",
+      "KeyS",
+      "KeyA",
+      "KeyD",
+      "KeyR",
+      "KeyF",
+      "KeyQ",
+      "KeyE",
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowLeft",
+      "ArrowRight",
+      "Space",
+      "KeyT",
+    ]);
+
+    function resetSpacecraft() {
+      spacecraft.position.set(0, 0, 0);
+      spacecraft.rotation.set(0, 0, 0);
+
+      velocity.set(0, 0, 0);
+      acceleration.set(0, 0, 0);
+
+      localThrust.set(0, 0, 0);
+      worldThrust.set(0, 0, 0);
+    }
+
+    function handleMovementKeyDown(event) {
+      if (!controlledKeys.has(event.code)) {
+        return;
+      }
+
+      event.preventDefault();
+
+      pressedKeys.add(event.code);
+
+      if (event.code === "Space") {
+        velocity.set(0, 0, 0);
+      }
+
+      if (
+        event.code === "KeyT" &&
+        !event.repeat
+      ) {
+        resetSpacecraft();
+      }
+    }
+
+    function handleMovementKeyUp(event) {
+      pressedKeys.delete(event.code);
+    }
+
+    window.addEventListener(
+      "keydown",
+      handleMovementKeyDown
+    );
+
+    window.addEventListener(
+      "keyup",
+      handleMovementKeyUp
+    );
+
+    function updateTranslation(deltaTime) {
+      localThrust.set(0, 0, 0);
+
+      if (pressedKeys.has("KeyW")) {
+        localThrust.z -= 1;
+      }
+
+      if (pressedKeys.has("KeyS")) {
+        localThrust.z += 1;
+      }
+
+      if (pressedKeys.has("KeyA")) {
+        localThrust.x -= 1;
+      }
+
+      if (pressedKeys.has("KeyD")) {
+        localThrust.x += 1;
+      }
+
+      if (pressedKeys.has("KeyR")) {
+        localThrust.y += 1;
+      }
+
+      if (pressedKeys.has("KeyF")) {
+        localThrust.y -= 1;
+      }
+
+      if (localThrust.lengthSq() > 0) {
+        localThrust.normalize();
+        localThrust.multiplyScalar(thrustForce);
+      }
+
+
+      worldThrust
+        .copy(localThrust)
+        .applyQuaternion(spacecraft.quaternion);
+
+   
+      acceleration
+        .copy(worldThrust)
+        .divideScalar(spacecraftMass);
+
+      velocity.addScaledVector(
+        acceleration,
+        deltaTime
+      );
+
+      spacecraft.position.addScaledVector(
+        velocity,
+        deltaTime
+      );
+    }
+
+  
+    function updateRotation(deltaTime) {
+      const rotationAmount =
+        rotationSpeed * deltaTime;
+
+      if (pressedKeys.has("ArrowUp")) {
+        spacecraft.rotateX(rotationAmount);
+      }
+
+      if (pressedKeys.has("ArrowDown")) {
+        spacecraft.rotateX(-rotationAmount);
+      }
+
+      if (pressedKeys.has("ArrowLeft")) {
+        spacecraft.rotateY(rotationAmount);
+      }
+
+      if (pressedKeys.has("ArrowRight")) {
+        spacecraft.rotateY(-rotationAmount);
+      }
+
+      if (pressedKeys.has("KeyQ")) {
+        spacecraft.rotateZ(rotationAmount);
+      }
+
+      if (pressedKeys.has("KeyE")) {
+        spacecraft.rotateZ(-rotationAmount);
+      }
+    }
+
+    
+
+    const velocityArrow = new THREE.ArrowHelper(
+      new THREE.Vector3(0, 0, -1),
+      spacecraft.position,
+      1,
+      0x22c55e,
+      0.3,
+      0.15
+    );
+
+    velocityArrow.visible = false;
+
+    scene.add(velocityArrow);
+
+    function updateVelocityArrow() {
+      const speed = velocity.length();
+
+      velocityArrow.position.copy(
+        spacecraft.position
+      );
+
+      if (speed < 0.001) {
+        velocityArrow.visible = false;
+        return;
+      }
+
+      movementDirection
+        .copy(velocity)
+        .normalize();
+
+      velocityArrow.setDirection(
+        movementDirection
+      );
+
+      velocityArrow.setLength(
+        Math.min(speed * 4, 6),
+        0.3,
+        0.15
+      );
+
+      velocityArrow.visible = true;
+    }
+
+   
     function setCameraView(view) {
       if (view === "overview") {
         camera.position.set(7, 5, 10);
@@ -311,8 +520,13 @@ export default function BasicScene() {
       }
 
       if (view === "spacecraft") {
-        camera.position.set(4, 2, 5);
-        controls.target.copy(spacecraft.position);
+        camera.position
+          .copy(spacecraft.position)
+          .add(new THREE.Vector3(4, 2, 5));
+
+        controls.target.copy(
+          spacecraft.position
+        );
       }
 
       if (view === "docking") {
@@ -323,7 +537,7 @@ export default function BasicScene() {
       controls.update();
     }
 
-    function handleKeyDown(event) {
+    function handleCameraKeyDown(event) {
       if (event.key === "1") {
         setCameraView("overview");
       }
@@ -339,26 +553,35 @@ export default function BasicScene() {
 
     window.addEventListener(
       "keydown",
-      handleKeyDown
+      handleCameraKeyDown
     );
 
+    // ==================================================
+    // Animation loop
+    // ==================================================
 
     const clock = new THREE.Clock();
 
     function animate() {
-      const elapsedTime = clock.getElapsedTime();
+      const rawDeltaTime = clock.getDelta();
 
-      spacecraft.position.y =
-        Math.sin(elapsedTime) * 0.15;
+      // Prevent large jumps after an inactive tab
+      const deltaTime = Math.min(
+        rawDeltaTime,
+        1 / 30
+      );
 
-      spacecraft.rotation.z =
-        Math.sin(elapsedTime * 0.6) * 0.05;
+      updateRotation(deltaTime);
+      updateTranslation(deltaTime);
+      updateVelocityArrow();
 
-      dockingRing.rotation.z =
-        elapsedTime * 0.08;
+      dockingRing.rotation.z +=
+        0.08 * deltaTime;
 
       if (selectedObject) {
-        selectionBox.setFromObject(selectedObject);
+        selectionBox.setFromObject(
+          selectedObject
+        );
       }
 
       controls.update();
@@ -368,10 +591,17 @@ export default function BasicScene() {
 
     renderer.setAnimationLoop(animate);
 
+    // ==================================================
+    // Resize handling
+    // ==================================================
 
     function handleResize() {
       const width = container.clientWidth;
       const height = container.clientHeight;
+
+      if (width === 0 || height === 0) {
+        return;
+      }
 
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
@@ -388,6 +618,9 @@ export default function BasicScene() {
       handleResize
     );
 
+    // ==================================================
+    // Cleanup
+    // ==================================================
 
     return () => {
       renderer.setAnimationLoop(null);
@@ -401,7 +634,17 @@ export default function BasicScene() {
 
       window.removeEventListener(
         "keydown",
-        handleKeyDown
+        handleCameraKeyDown
+      );
+
+      window.removeEventListener(
+        "keydown",
+        handleMovementKeyDown
+      );
+
+      window.removeEventListener(
+        "keyup",
+        handleMovementKeyUp
       );
 
       renderer.domElement.removeEventListener(
