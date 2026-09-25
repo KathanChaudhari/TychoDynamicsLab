@@ -2,16 +2,20 @@ import { useEffect, useRef } from "react";
 import RAPIER from "@dimforge/rapier3d-compat";
 
 import { createSceneEnvironment } from "./scene/SceneEnvironment.js";
-import { createSpacecraft } from "./scene/spacecraft/Spacecraft.js";
-import { createDockingStation } from "./scene/DockingStation.js";
 import { createInteractionController } from "./scene/InteractionController.js";
 import { startSimulationLoop } from "./scene/SimulationLoop.js";
+
+import { createSpacecraft } from "./scene/spacecraft/Spacecraft.js";
+
+import { createDockingStation } from "./scene/docking/DockingStation.js";
+import { createDockingSystem } from "./scene/docking/DockingSystem.js";
 
 export default function BasicScene() {
   const containerRef = useRef(null);
 
   useEffect(() => {
-    const container = containerRef.current;
+    const container =
+      containerRef.current;
 
     if (!container) {
       return;
@@ -37,23 +41,40 @@ export default function BasicScene() {
         controls,
       } = environment;
 
-      const world = new RAPIER.World({
-        x: 0,
-        y: 0,
-        z: 0,
-      });
 
-      const spacecraft = createSpacecraft(
-        scene,
-        world,
-        RAPIER
-      );
+      const world =
+        new RAPIER.World({
+          x: 0,
+          y: 0,
+          z: 0,
+        });
 
-      const station = createDockingStation(
-        scene,
-        world,
-        RAPIER
-      );
+      const eventQueue =
+        new RAPIER.EventQueue(true);
+
+
+      const spacecraft =
+        createSpacecraft(
+          scene,
+          world,
+          RAPIER
+        );
+
+      const station =
+        createDockingStation(
+          scene,
+          world,
+          RAPIER
+        );
+
+
+      const dockingSystem =
+        createDockingSystem({
+          eventQueue,
+          spacecraft,
+          station,
+        });
+
 
       const interactions =
         createInteractionController({
@@ -63,7 +84,12 @@ export default function BasicScene() {
           controls,
           spacecraft,
           station,
+
+          onReset: () => {
+            dockingSystem.reset();
+          },
         });
+
 
       const simulation =
         startSimulationLoop({
@@ -72,16 +98,20 @@ export default function BasicScene() {
           renderer,
           controls,
           world,
+          eventQueue,
           spacecraft,
           station,
           interactions,
+          dockingSystem,
         });
 
       cleanup = () => {
         simulation.stop();
         interactions.dispose();
 
+        eventQueue.free();
         world.free();
+
         environment.dispose();
       };
     }

@@ -25,6 +25,7 @@ export function createInteractionController({
   controls,
   spacecraft,
   station,
+  onReset,
 }) {
   const pressedKeys = new Set();
 
@@ -43,6 +44,7 @@ export function createInteractionController({
     );
 
   selectionBox.visible = false;
+
   scene.add(selectionBox);
 
   function setCameraView(view) {
@@ -73,7 +75,6 @@ export function createInteractionController({
   }
 
   function handleKeyDown(event) {
-
     if (event.code === "Digit1") {
       setCameraView("overview");
     }
@@ -86,13 +87,15 @@ export function createInteractionController({
       setCameraView("docking");
     }
 
-    if (!CONTROLLED_KEYS.has(event.code)) {
+    if (
+      !CONTROLLED_KEYS.has(event.code)
+    ) {
       return;
     }
 
     event.preventDefault();
-    pressedKeys.add(event.code);
 
+    pressedKeys.add(event.code);
 
     if (
       event.code === "Space" &&
@@ -113,6 +116,7 @@ export function createInteractionController({
       !event.repeat
     ) {
       spacecraft.reset();
+      onReset?.();
     }
   }
 
@@ -175,9 +179,12 @@ export function createInteractionController({
         true
       );
 
-    if (intersections.length === 0) {
+    if (
+      intersections.length === 0
+    ) {
       selectedObject = null;
       selectionBox.visible = false;
+
       return;
     }
 

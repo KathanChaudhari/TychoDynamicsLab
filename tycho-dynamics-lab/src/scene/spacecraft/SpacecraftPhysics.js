@@ -17,7 +17,6 @@ export function createSpacecraftPhysics({
       rigidBodyDescription
     );
 
- 
   const colliderDescription =
     RAPIER.ColliderDesc.cuboid(
       0.8,
@@ -26,12 +25,22 @@ export function createSpacecraftPhysics({
     )
       .setMass(SPACECRAFT_MASS)
       .setFriction(0.4)
-      .setRestitution(0.1);
+      .setRestitution(0.1)
+      .setActiveEvents(
+        RAPIER.ActiveEvents
+          .COLLISION_EVENTS |
+          RAPIER.ActiveEvents
+            .CONTACT_FORCE_EVENTS
+      )
+      .setContactForceEventThreshold(
+        100
+      );
 
-  const collider = world.createCollider(
-    colliderDescription,
-    rigidBody
-  );
+  const collider =
+    world.createCollider(
+      colliderDescription,
+      rigidBody
+    );
 
   function syncModel() {
     const position =
