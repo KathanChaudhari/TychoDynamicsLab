@@ -12,12 +12,9 @@ export function createSceneEnvironment(container) {
     1
   );
 
-  // Scene
-
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x030712);
 
-  // Camera
 
   const camera = new THREE.PerspectiveCamera(
     60,
@@ -29,7 +26,6 @@ export function createSceneEnvironment(container) {
   camera.position.set(7, 5, 10);
   camera.lookAt(0, 0, -2);
 
-  // Renderer
 
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -46,7 +42,6 @@ export function createSceneEnvironment(container) {
 
   container.appendChild(renderer.domElement);
 
-  // Camera controls
 
   const controls = new OrbitControls(
     camera,
@@ -61,7 +56,6 @@ export function createSceneEnvironment(container) {
   controls.target.set(0, 0, -3);
   controls.update();
 
-  // Lighting
 
   const hemisphereLight =
     new THREE.HemisphereLight(
@@ -83,7 +77,6 @@ export function createSceneEnvironment(container) {
     sunLight
   );
 
-  // Helpers
 
   const axesHelper =
     new THREE.AxesHelper(3);
@@ -104,7 +97,6 @@ export function createSceneEnvironment(container) {
     gridHelper
   );
 
-  // Resize handling
 
   function handleResize() {
     const nextWidth =

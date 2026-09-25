@@ -132,10 +132,7 @@ export function createFlightController(
   }
 
   function applyControls(pressedKeys) {
-    /*
-     * Forces and torques are rebuilt from the
-     * current keyboard state every physics step.
-     */
+    
     rigidBody.resetForces(true);
     rigidBody.resetTorques(true);
 

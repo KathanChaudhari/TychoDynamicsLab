@@ -73,7 +73,6 @@ export function createInteractionController({
   }
 
   function handleKeyDown(event) {
-    // Camera presets
 
     if (event.code === "Digit1") {
       setCameraView("overview");
@@ -94,7 +93,6 @@ export function createInteractionController({
     event.preventDefault();
     pressedKeys.add(event.code);
 
-    // One-time commands
 
     if (
       event.code === "Space" &&

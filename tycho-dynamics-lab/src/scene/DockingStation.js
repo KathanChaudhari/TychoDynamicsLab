@@ -7,9 +7,7 @@ export function createDockingStation(
   world,
   RAPIER
 ) {
-  // ================================================
-  // Three.js visual group
-  // ================================================
+
 
   const group = new THREE.Group();
 
@@ -34,9 +32,7 @@ export function createDockingStation(
       roughness: 0.3,
     });
 
-  // ================================================
-  // Visible docking ring
-  // ================================================
+  
 
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(
@@ -62,10 +58,6 @@ export function createDockingStation(
   ringMarker.position.y = 2.4;
 
   ring.add(ringMarker);
-
-  // ================================================
-  // Visible collision frame
-  // ================================================
 
   function createFramePart(size, position) {
     const mesh = new THREE.Mesh(
@@ -115,10 +107,7 @@ export function createDockingStation(
     new THREE.Vector3(2.65, 0, 0)
   );
 
-  // ================================================
-  // Docking light
-  // ================================================
-
+  
   const dockingLight = new THREE.PointLight(
     0x38bdf8,
     15,
@@ -129,9 +118,6 @@ export function createDockingStation(
 
   group.add(dockingLight);
 
-  // ================================================
-  // Rapier fixed body
-  // ================================================
 
   const rigidBodyDescription =
     RAPIER.RigidBodyDesc.fixed()
@@ -166,25 +152,21 @@ export function createDockingStation(
   }
 
   const colliders = [
-    // Top
     addCuboidCollider(
       new THREE.Vector3(2.9, 0.25, 0.3),
       new THREE.Vector3(0, 2.65, 0)
     ),
 
-    // Bottom
     addCuboidCollider(
       new THREE.Vector3(2.9, 0.25, 0.3),
       new THREE.Vector3(0, -2.65, 0)
     ),
 
-    // Left
     addCuboidCollider(
       new THREE.Vector3(0.25, 2.4, 0.3),
       new THREE.Vector3(-2.65, 0, 0)
     ),
 
-    // Right
     addCuboidCollider(
       new THREE.Vector3(0.25, 2.4, 0.3),
       new THREE.Vector3(2.65, 0, 0)

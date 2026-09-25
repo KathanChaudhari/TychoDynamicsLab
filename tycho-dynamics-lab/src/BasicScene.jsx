@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import RAPIER from "@dimforge/rapier3d-compat";
 
 import { createSceneEnvironment } from "./scene/SceneEnvironment.js";
-import { createSpacecraft } from "./scene/Spacecraft.js";
+import { createSpacecraft } from "./scene/spacecraft/Spacecraft.js";
 import { createDockingStation } from "./scene/DockingStation.js";
 import { createInteractionController } from "./scene/InteractionController.js";
 import { startSimulationLoop } from "./scene/SimulationLoop.js";

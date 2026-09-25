@@ -9,7 +9,6 @@ export function createSpacecraftModel(scene) {
 
   scene.add(group);
 
-  // Materials
 
   const hullMaterial =
     new THREE.MeshStandardMaterial({
@@ -34,7 +33,6 @@ export function createSpacecraftModel(scene) {
       roughness: 0.3,
     });
 
-  // Main body
 
   const bodyMesh = new THREE.Mesh(
     new THREE.BoxGeometry(1.6, 0.8, 3),
@@ -43,7 +41,6 @@ export function createSpacecraftModel(scene) {
 
   group.add(bodyMesh);
 
-  // Nose
 
   const nose = new THREE.Mesh(
     new THREE.ConeGeometry(0.8, 1.2, 4),
@@ -55,7 +52,6 @@ export function createSpacecraftModel(scene) {
 
   group.add(nose);
 
-  // Left wing
 
   const leftWing = new THREE.Mesh(
     new THREE.BoxGeometry(2, 0.12, 1.4),
@@ -66,14 +62,12 @@ export function createSpacecraftModel(scene) {
 
   group.add(leftWing);
 
-  // Right wing
 
   const rightWing = leftWing.clone();
   rightWing.position.x = 1.5;
 
   group.add(rightWing);
 
-  // Engine
 
   const engine = new THREE.Mesh(
     new THREE.CylinderGeometry(
@@ -90,7 +84,6 @@ export function createSpacecraftModel(scene) {
 
   group.add(engine);
 
-  // Velocity indicator
 
   const velocityArrow = new THREE.ArrowHelper(
     new THREE.Vector3(0, 0, -1),

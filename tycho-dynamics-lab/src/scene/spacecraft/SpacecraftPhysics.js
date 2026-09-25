@@ -17,12 +17,7 @@ export function createSpacecraftPhysics({
       rigidBodyDescription
     );
 
-  /*
-   * Rapier cuboids use half-extents.
-   *
-   * Visible body: 1.6 × 0.8 × 3
-   * Collider:     0.8 × 0.4 × 1.5
-   */
+ 
   const colliderDescription =
     RAPIER.ColliderDesc.cuboid(
       0.8,
