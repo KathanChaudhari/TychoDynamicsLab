@@ -12,3 +12,7 @@ body {
   overflow: hidden;
   background: #030712;
 }
+
+canvas {
+  display: block;
+}

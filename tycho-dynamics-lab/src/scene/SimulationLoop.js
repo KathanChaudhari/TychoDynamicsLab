@@ -2,41 +2,26 @@ import * as THREE from "three";
 
 const FIXED_TIME_STEP = 1 / 60;
 const MAX_FRAME_TIME = 0.1;
+const TELEMETRY_INTERVAL = 0.1;
 
 const EMPTY_KEYS = new Set();
 
 export function startSimulationLoop({
+  renderer,
   scene,
   camera,
-  renderer,
-  controls,
   world,
   eventQueue,
   spacecraft,
-  station,
-  interactions,
   dockingSystem,
+  pressedKeys,
+  onTelemetry,
 }) {
-  world.timestep = FIXED_TIME_STEP;
-
   const clock = new THREE.Clock();
 
-  let accumulator = 0;
-
-  function runPhysicsStep() {
-    const activeKeys =
-      dockingSystem.canControl()
-        ? interactions.pressedKeys
-        : EMPTY_KEYS;
-
-    
-    spacecraft.applyControls(activeKeys);
-
-    world.step(eventQueue);
-
-    dockingSystem.processEvents();
-    dockingSystem.update();
-  }
+  let physicsAccumulator = 0;
+  let telemetryAccumulator =
+    TELEMETRY_INTERVAL;
 
   function animate() {
     const frameTime = Math.min(
@@ -44,35 +29,51 @@ export function startSimulationLoop({
       MAX_FRAME_TIME
     );
 
-    accumulator += frameTime;
+    physicsAccumulator += frameTime;
+    telemetryAccumulator += frameTime;
 
     while (
-      accumulator >= FIXED_TIME_STEP
+      physicsAccumulator >= FIXED_TIME_STEP
     ) {
-      runPhysicsStep();
+      const activeKeys =
+        dockingSystem.canControl()
+          ? pressedKeys
+          : EMPTY_KEYS;
 
-      accumulator -= FIXED_TIME_STEP;
+      spacecraft.applyControls(activeKeys);
+
+      world.step(eventQueue);
+
+      dockingSystem.processEvents();
+      dockingSystem.update();
+
+      physicsAccumulator -=
+        FIXED_TIME_STEP;
     }
 
     spacecraft.syncFromPhysics();
     spacecraft.updateVelocityArrow();
 
-    station.ring.rotation.z +=
-      0.08 * frameTime;
+    if (
+      telemetryAccumulator >=
+      TELEMETRY_INTERVAL
+    ) {
+      onTelemetry?.(
+        dockingSystem.getTelemetry()
+      );
 
-    interactions.update();
-    controls.update();
+      telemetryAccumulator = 0;
+    }
 
     renderer.render(scene, camera);
   }
 
   renderer.setAnimationLoop(animate);
 
-  function stop() {
-    renderer.setAnimationLoop(null);
-  }
-
   return {
-    stop,
+    stop() {
+      renderer.setAnimationLoop(null);
+      clock.stop();
+    },
   };
 }

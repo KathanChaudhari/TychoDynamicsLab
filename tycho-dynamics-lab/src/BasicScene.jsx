@@ -1,16 +1,28 @@
 import { useEffect, useRef } from "react";
 import RAPIER from "@dimforge/rapier3d-compat";
 
-import { createSceneEnvironment } from "./scene/SceneEnvironment.js";
-import { createInteractionController } from "./scene/InteractionController.js";
-import { startSimulationLoop } from "./scene/SimulationLoop.js";
+import { createSceneEnvironment } from "./scene/SceneEnvironment";
+import { createInteractionController } from "./scene/InteractionController";
+import { startSimulationLoop } from "./scene/SimulationLoop";
 
-import { createSpacecraft } from "./scene/spacecraft/Spacecraft.js";
+import { createSpacecraft } from "./scene/spacecraft/Spacecraft";
+import { createDockingStation } from "./scene/docking/DockingStation";
+import { createDockingSystem } from "./scene/docking/DockingSystem";
 
-import { createDockingStation } from "./scene/docking/DockingStation.js";
-import { createDockingSystem } from "./scene/docking/DockingSystem.js";
+let rapierInitializationPromise = null;
 
-export default function BasicScene() {
+function initializeRapier() {
+  if (!rapierInitializationPromise) {
+    rapierInitializationPromise =
+      RAPIER.init();
+  }
+
+  return rapierInitializationPromise;
+}
+
+export default function BasicScene({
+  onTelemetry,
+}) {
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -18,14 +30,14 @@ export default function BasicScene() {
       containerRef.current;
 
     if (!container) {
-      return;
+      return undefined;
     }
 
     let cancelled = false;
-    let cleanup = null;
+    let cleanupScene = null;
 
     async function initialize() {
-      await RAPIER.init();
+      await initializeRapier();
 
       if (cancelled) {
         return;
@@ -41,24 +53,20 @@ export default function BasicScene() {
         controls,
       } = environment;
 
-
-      const world =
-        new RAPIER.World({
-          x: 0,
-          y: 0,
-          z: 0,
-        });
+      const world = new RAPIER.World({
+        x: 0,
+        y: 0,
+        z: 0,
+      });
 
       const eventQueue =
         new RAPIER.EventQueue(true);
 
-
-      const spacecraft =
-        createSpacecraft(
-          scene,
-          world,
-          RAPIER
-        );
+      const spacecraft = createSpacecraft(
+        scene,
+        world,
+        RAPIER
+      );
 
       const station =
         createDockingStation(
@@ -67,14 +75,12 @@ export default function BasicScene() {
           RAPIER
         );
 
-
       const dockingSystem =
         createDockingSystem({
           eventQueue,
           spacecraft,
           station,
         });
-
 
       const interactions =
         createInteractionController({
@@ -83,29 +89,35 @@ export default function BasicScene() {
           renderer,
           controls,
           spacecraft,
-          station,
 
-          onReset: () => {
+          onReset() {
             dockingSystem.reset();
+
+            onTelemetry?.(
+              dockingSystem.getTelemetry()
+            );
           },
         });
 
-
       const simulation =
         startSimulationLoop({
+          renderer,
           scene,
           camera,
-          renderer,
-          controls,
           world,
           eventQueue,
           spacecraft,
-          station,
-          interactions,
           dockingSystem,
+          pressedKeys:
+            interactions.pressedKeys,
+          onTelemetry,
         });
 
-      cleanup = () => {
+      onTelemetry?.(
+        dockingSystem.getTelemetry()
+      );
+
+      cleanupScene = () => {
         simulation.stop();
         interactions.dispose();
 
@@ -116,23 +128,18 @@ export default function BasicScene() {
       };
     }
 
-    initialize().catch((error) => {
-      console.error(
-        "Failed to initialize scene:",
-        error
-      );
-    });
+    initialize();
 
     return () => {
       cancelled = true;
-      cleanup?.();
+      cleanupScene?.();
     };
-  }, []);
+  }, [onTelemetry]);
 
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0"
+      className="h-full w-full"
     />
   );
 }
