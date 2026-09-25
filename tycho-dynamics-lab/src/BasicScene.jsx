@@ -75,24 +75,37 @@ export default function BasicScene({
           RAPIER
         );
 
-      const dockingSystem =
+        const dockingSystem =
         createDockingSystem({
+          world,
+          RAPIER,
           eventQueue,
           spacecraft,
           station,
         });
 
-      const interactions =
+        const interactions =
         createInteractionController({
           scene,
           camera,
           renderer,
           controls,
           spacecraft,
-
+          station,
+      
           onReset() {
             dockingSystem.reset();
-
+      
+            spacecraft.reset();
+      
+            onTelemetry?.(
+              dockingSystem.getTelemetry()
+            );
+          },
+      
+          onUndock() {
+            dockingSystem.undock();
+      
             onTelemetry?.(
               dockingSystem.getTelemetry()
             );

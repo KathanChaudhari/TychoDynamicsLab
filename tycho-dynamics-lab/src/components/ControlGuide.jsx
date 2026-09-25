@@ -5,10 +5,10 @@ const controls = [
     ["Arrow keys", "Pitch / yaw"],
     ["Q / E", "Roll"],
     ["Space", "Stop movement"],
+    ["U", "Undock"],
     ["T", "Reset simulation"],
     ["1 / 2 / 3", "Camera presets"],
   ];
-  
   export default function ControlGuide() {
     return (
       <aside className="pointer-events-none absolute bottom-4 right-4 hidden w-[250px] rounded-xl border border-white/10 bg-slate-950/70 p-4 backdrop-blur-md md:block">

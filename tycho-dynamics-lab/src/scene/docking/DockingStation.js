@@ -2,6 +2,9 @@ import * as THREE from "three";
 
 const STATION_Z = -7;
 
+
+const SENSOR_POSITION_Z = 1.25;
+
 const STATUS_STYLES = {
   approach: {
     color: 0xf8fafc,
@@ -33,17 +36,17 @@ export function createDockingStation(
   world,
   RAPIER
 ) {
- 
+
   const group = new THREE.Group();
 
   group.position.z = STATION_Z;
 
   group.userData.selectable = true;
-  group.userData.label = "Docking station";
+  group.userData.label =
+    "Docking station";
 
   scene.add(group);
 
-  
   const frameMaterial =
     new THREE.MeshStandardMaterial({
       color: 0x475569,
@@ -60,7 +63,7 @@ export function createDockingStation(
       roughness: 0.3,
     });
 
-  
+ 
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(
       2.4,
@@ -90,7 +93,7 @@ export function createDockingStation(
 
   ring.add(ringMarker);
 
-  
+ 
   function createFramePart(
     size,
     position
@@ -159,11 +162,15 @@ export function createDockingStation(
     })
   );
 
-  sensorMesh.position.z = -0.4;
+
+  sensorMesh.position.set(
+    0,
+    0,
+    SENSOR_POSITION_Z
+  );
 
   group.add(sensorMesh);
 
-  
   const dockingLight =
     new THREE.PointLight(
       0x38bdf8,
@@ -179,6 +186,7 @@ export function createDockingStation(
 
   group.add(dockingLight);
 
+ 
   const rigidBodyDescription =
     RAPIER.RigidBodyDesc.fixed()
       .setTranslation(
@@ -192,7 +200,7 @@ export function createDockingStation(
       rigidBodyDescription
     );
 
- 
+  
   function addFrameCollider(
     halfExtents,
     position
@@ -281,7 +289,7 @@ export function createDockingStation(
       .setTranslation(
         0,
         0,
-        -0.4
+        SENSOR_POSITION_Z
       )
       .setSensor(true)
       .setActiveEvents(
@@ -294,6 +302,7 @@ export function createDockingStation(
       sensorDescription,
       rigidBody
     );
+
 
   function setStatus(status) {
     const style =

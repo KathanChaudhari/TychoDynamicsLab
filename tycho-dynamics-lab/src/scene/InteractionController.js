@@ -16,6 +16,7 @@ const CONTROLLED_KEYS = new Set([
   "Space",
   "KeyX",
   "KeyT",
+  "KeyU",
 ]);
 
 export function createInteractionController({
@@ -26,11 +27,15 @@ export function createInteractionController({
   spacecraft,
   station,
   onReset,
+  onUndock,
 }) {
   const pressedKeys = new Set();
 
-  const raycaster = new THREE.Raycaster();
-  const pointer = new THREE.Vector2();
+  const raycaster =
+    new THREE.Raycaster();
+
+  const pointer =
+    new THREE.Vector2();
 
   const spacecraftCameraOffset =
     new THREE.Vector3(4, 2, 5);
@@ -47,6 +52,7 @@ export function createInteractionController({
 
   scene.add(selectionBox);
 
+  
   function setCameraView(view) {
     if (view === "overview") {
       camera.position.set(7, 5, 10);
@@ -74,17 +80,21 @@ export function createInteractionController({
     controls.update();
   }
 
+
   function handleKeyDown(event) {
     if (event.code === "Digit1") {
       setCameraView("overview");
+      return;
     }
 
     if (event.code === "Digit2") {
       setCameraView("spacecraft");
+      return;
     }
 
     if (event.code === "Digit3") {
       setCameraView("docking");
+      return;
     }
 
     if (
@@ -95,28 +105,38 @@ export function createInteractionController({
 
     event.preventDefault();
 
+  
     pressedKeys.add(event.code);
 
-    if (
-      event.code === "Space" &&
-      !event.repeat
-    ) {
+    if (event.repeat) {
+      return;
+    }
+
+    if (event.code === "Space") {
       spacecraft.stopLinearMotion();
+      pressedKeys.delete(event.code);
+
+      return;
     }
 
-    if (
-      event.code === "KeyX" &&
-      !event.repeat
-    ) {
+    if (event.code === "KeyX") {
       spacecraft.stopAngularMotion();
+      pressedKeys.delete(event.code);
+
+      return;
     }
 
-    if (
-      event.code === "KeyT" &&
-      !event.repeat
-    ) {
-      spacecraft.reset();
+    if (event.code === "KeyT") {
+   
       onReset?.();
+      pressedKeys.delete(event.code);
+
+      return;
+    }
+
+    if (event.code === "KeyU") {
+      onUndock?.();
+      pressedKeys.delete(event.code);
     }
   }
 
@@ -195,6 +215,7 @@ export function createInteractionController({
 
     if (!selectedObject) {
       selectionBox.visible = false;
+
       return;
     }
 
@@ -210,6 +231,7 @@ export function createInteractionController({
     );
   }
 
+  
   function update() {
     if (selectedObject) {
       selectionBox.setFromObject(
@@ -217,6 +239,7 @@ export function createInteractionController({
       );
     }
   }
+
 
   function dispose() {
     pressedKeys.clear();
@@ -235,6 +258,11 @@ export function createInteractionController({
       "pointerdown",
       handlePointerDown
     );
+
+    scene.remove(selectionBox);
+
+    selectionBox.geometry.dispose();
+    selectionBox.material.dispose();
   }
 
   window.addEventListener(

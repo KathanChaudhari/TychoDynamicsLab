@@ -13,12 +13,27 @@ const DOCKING_RULES = Object.freeze({
   maximumAlignmentAngle:
     THREE.MathUtils.degToRad(7),
   maximumLateralOffset: 0.35,
-
-  // Reduced while learning/testing.
+  maximumCaptureDistance: 0.8,
   crashForce: 5000,
 });
 
+
+const SPACECRAFT_DOCKING_POINT = {
+  x: 0,
+  y: 0,
+  z: -2.7,
+};
+
+const IDENTITY_ROTATION = {
+  x: 0,
+  y: 0,
+  z: 0,
+  w: 1,
+};
+
 export function createDockingSystem({
+  world,
+  RAPIER,
   eventQueue,
   spacecraft,
   station,
@@ -26,6 +41,7 @@ export function createDockingSystem({
   let state = DockingState.APPROACH;
   let insideSensor = false;
   let lastImpactForce = 0;
+  let dockingJoint = null;
 
   const spacecraftHandle =
     spacecraft.collider.handle;
@@ -40,6 +56,9 @@ export function createDockingSystem({
   );
 
   const spacecraftPosition =
+    new THREE.Vector3();
+
+  const spacecraftDockingPosition =
     new THREE.Vector3();
 
   const stationPosition =
@@ -72,6 +91,7 @@ export function createDockingSystem({
       angularSpeed: true,
       alignment: true,
       lateralOffset: true,
+      distance: true,
     },
   };
 
@@ -98,10 +118,53 @@ export function createDockingSystem({
     );
   }
 
+  function createDockingJoint() {
+    if (dockingJoint) {
+      return;
+    }
+
+    spacecraft.stopLinearMotion();
+    spacecraft.stopAngularMotion();
+
+  
+    const jointData =
+      RAPIER.JointData.fixed(
+        {
+          x: 0,
+          y: 0,
+          z: 0,
+        },
+        IDENTITY_ROTATION,
+        SPACECRAFT_DOCKING_POINT,
+        IDENTITY_ROTATION
+      );
+
+    dockingJoint =
+      world.createImpulseJoint(
+        jointData,
+        station.rigidBody,
+        spacecraft.rigidBody,
+        true
+      );
+  }
+
+  function removeDockingJoint() {
+    if (!dockingJoint) {
+      return;
+    }
+
+    world.removeImpulseJoint(
+      dockingJoint,
+      true
+    );
+
+    dockingJoint = null;
+  }
+
   function processCollisionEvents() {
     eventQueue.drainCollisionEvents(
       (handle1, handle2, started) => {
-        const isDockingSensorEvent =
+        const isSensorEvent =
           containsPair(
             handle1,
             handle2,
@@ -109,7 +172,7 @@ export function createDockingSystem({
             sensorHandle
           );
 
-        if (isDockingSensorEvent) {
+        if (isSensorEvent) {
           insideSensor = started;
         }
       }
@@ -126,11 +189,11 @@ export function createDockingSystem({
           handle1 === spacecraftHandle ||
           handle2 === spacecraftHandle;
 
-        const hitStationFrame =
+        const hitStation =
           frameHandles.has(handle1) ||
           frameHandles.has(handle2);
 
-        if (!hitSpacecraft || !hitStationFrame) {
+        if (!hitSpacecraft || !hitStation) {
           return;
         }
 
@@ -146,7 +209,11 @@ export function createDockingSystem({
           impactForce >=
           DOCKING_RULES.crashForce
         ) {
-          setState(DockingState.CRASHED);
+          removeDockingJoint();
+
+          setState(
+            DockingState.CRASHED
+          );
 
           spacecraft.stopLinearMotion();
           spacecraft.stopAngularMotion();
@@ -179,9 +246,26 @@ export function createDockingSystem({
       position.z
     );
 
+    orientation.set(
+      rotation.x,
+      rotation.y,
+      rotation.z,
+      rotation.w
+    );
+
     station.group.getWorldPosition(
       stationPosition
     );
+
+   
+    spacecraftDockingPosition
+      .set(
+        SPACECRAFT_DOCKING_POINT.x,
+        SPACECRAFT_DOCKING_POINT.y,
+        SPACECRAFT_DOCKING_POINT.z
+      )
+      .applyQuaternion(orientation)
+      .add(spacecraftPosition);
 
     linearVelocity.set(
       linvel.x,
@@ -193,13 +277,6 @@ export function createDockingSystem({
       angvel.x,
       angvel.y,
       angvel.z
-    );
-
-    orientation.set(
-      rotation.x,
-      rotation.y,
-      rotation.z,
-      rotation.w
     );
 
     spacecraftForward
@@ -221,11 +298,11 @@ export function createDockingSystem({
       );
 
     const offsetX =
-      spacecraftPosition.x -
+      spacecraftDockingPosition.x -
       stationPosition.x;
 
     const offsetY =
-      spacecraftPosition.y -
+      spacecraftDockingPosition.y -
       stationPosition.y;
 
     metrics.lateralOffset = Math.sqrt(
@@ -234,7 +311,7 @@ export function createDockingSystem({
     );
 
     metrics.distance =
-      spacecraftPosition.distanceTo(
+      spacecraftDockingPosition.distanceTo(
         stationPosition
       );
 
@@ -255,16 +332,15 @@ export function createDockingSystem({
     metrics.checks.lateralOffset =
       metrics.lateralOffset <=
       DOCKING_RULES.maximumLateralOffset;
+
+    metrics.checks.distance =
+      metrics.distance <=
+      DOCKING_RULES.maximumCaptureDistance;
   }
 
   function update() {
     updateMetrics();
 
-    /*
-     * CRASHED must persist until reset.
-     * Otherwise IN_RANGE could overwrite it on
-     * the next physics step.
-     */
     if (state === DockingState.CRASHED) {
       return;
     }
@@ -282,17 +358,16 @@ export function createDockingSystem({
       metrics.checks.speed &&
       metrics.checks.angularSpeed &&
       metrics.checks.alignment &&
-      metrics.checks.lateralOffset;
+      metrics.checks.lateralOffset &&
+      metrics.checks.distance;
 
     if (!validDocking) {
       setState(DockingState.IN_RANGE);
       return;
     }
 
+    createDockingJoint();
     setState(DockingState.DOCKED);
-
-    spacecraft.stopLinearMotion();
-    spacecraft.stopAngularMotion();
   }
 
   function canControl() {
@@ -300,6 +375,35 @@ export function createDockingSystem({
       state !== DockingState.DOCKED &&
       state !== DockingState.CRASHED
     );
+  }
+
+  function undock() {
+    if (
+      state !== DockingState.DOCKED ||
+      !dockingJoint
+    ) {
+      return;
+    }
+
+    removeDockingJoint();
+
+    insideSensor = false;
+    lastImpactForce = 0;
+
+    spacecraft.stopLinearMotion();
+    spacecraft.stopAngularMotion();
+
+   
+    spacecraft.rigidBody.applyImpulse(
+      {
+        x: 0,
+        y: 0,
+        z: 180,
+      },
+      true
+    );
+
+    setState(DockingState.APPROACH);
   }
 
   function getState() {
@@ -339,6 +443,9 @@ export function createDockingSystem({
         maximumLateralOffset:
           DOCKING_RULES.maximumLateralOffset,
 
+        maximumCaptureDistance:
+          DOCKING_RULES.maximumCaptureDistance,
+
         crashForce:
           DOCKING_RULES.crashForce,
       },
@@ -346,6 +453,8 @@ export function createDockingSystem({
   }
 
   function reset() {
+    removeDockingJoint();
+
     state = DockingState.APPROACH;
     insideSensor = false;
     lastImpactForce = 0;
@@ -363,6 +472,7 @@ export function createDockingSystem({
     processEvents,
     update,
     canControl,
+    undock,
     getState,
     getTelemetry,
     reset,
