@@ -3,7 +3,6 @@ import {
   } from "./DockingConfig";
   
   export function createDockingEventHandler({
-    eventQueue,
     spacecraft,
     station,
     onSensorChange,
@@ -37,69 +36,57 @@ import {
       );
     }
   
-    function processCollisionEvents() {
-      eventQueue.drainCollisionEvents(
-        (handle1, handle2, started) => {
-          const isSensorEvent =
-            containsPair(
-              handle1,
-              handle2,
-              spacecraftHandle,
-              sensorHandle
-            );
+    function handleCollisionEvent(
+      handle1,
+      handle2,
+      started
+    ) {
+      const isSensorEvent =
+        containsPair(
+          handle1,
+          handle2,
+          spacecraftHandle,
+          sensorHandle
+        );
   
-          if (isSensorEvent) {
-            onSensorChange(started);
-          }
-        }
-      );
+      if (isSensorEvent) {
+        onSensorChange(started);
+      }
     }
   
-    function processContactForceEvents() {
-      eventQueue.drainContactForceEvents(
-        (event) => {
-          const handle1 =
-            event.collider1();
+    function handleContactForceEvent(event) {
+      const handle1 = event.collider1();
+      const handle2 = event.collider2();
   
-          const handle2 =
-            event.collider2();
+      const hitSpacecraft =
+        handle1 === spacecraftHandle ||
+        handle2 === spacecraftHandle;
   
-          const hitSpacecraft =
-            handle1 === spacecraftHandle ||
-            handle2 === spacecraftHandle;
+      const hitStationFrame =
+        frameHandles.has(handle1) ||
+        frameHandles.has(handle2);
   
-          const hitStationFrame =
-            frameHandles.has(handle1) ||
-            frameHandles.has(handle2);
+      if (
+        !hitSpacecraft ||
+        !hitStationFrame
+      ) {
+        return;
+      }
   
-          if (
-            !hitSpacecraft ||
-            !hitStationFrame
-          ) {
-            return;
-          }
+      const impactForce =
+        event.totalForceMagnitude();
   
-          const impactForce =
-            event.totalForceMagnitude();
-  
-          lastImpactForce = Math.max(
-            lastImpactForce,
-            impactForce
-          );
-  
-          if (
-            impactForce >=
-            DOCKING_RULES.crashForce
-          ) {
-            onCrash(impactForce);
-          }
-        }
+      lastImpactForce = Math.max(
+        lastImpactForce,
+        impactForce
       );
-    }
   
-    function process() {
-      processCollisionEvents();
-      processContactForceEvents();
+      if (
+        impactForce >=
+        DOCKING_RULES.crashForce
+      ) {
+        onCrash(impactForce);
+      }
     }
   
     function getLastImpactForce() {
@@ -111,7 +98,8 @@ import {
     }
   
     return {
-      process,
+      handleCollisionEvent,
+      handleContactForceEvent,
       getLastImpactForce,
       reset,
     };

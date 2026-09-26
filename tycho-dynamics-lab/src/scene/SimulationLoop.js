@@ -12,8 +12,10 @@ export function startSimulationLoop({
   camera,
   world,
   eventQueue,
+  physicsEvents,
   spacecraft,
   dockingSystem,
+  probeSystem,
   pressedKeys,
   onTelemetry,
 }) {
@@ -40,18 +42,25 @@ export function startSimulationLoop({
           ? pressedKeys
           : EMPTY_KEYS;
 
-     
       spacecraft.applyControls(
         activeKeys
       );
 
-     
       dockingSystem.beforePhysicsStep();
 
       world.step(eventQueue);
 
-      dockingSystem.processEvents();
+      /*
+       * Drain once and distribute the events
+       * to docking and projectile systems.
+       */
+      physicsEvents.drain();
+
       dockingSystem.afterPhysicsStep();
+
+      probeSystem.afterPhysicsStep(
+        FIXED_TIME_STEP
+      );
 
       physicsAccumulator -=
         FIXED_TIME_STEP;
@@ -59,6 +68,8 @@ export function startSimulationLoop({
 
     spacecraft.syncFromPhysics();
     spacecraft.updateVelocityArrow();
+
+    probeSystem.syncVisuals();
 
     if (
       telemetryAccumulator >=

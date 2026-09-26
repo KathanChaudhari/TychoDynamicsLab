@@ -29,7 +29,6 @@ export {
 export function createDockingSystem({
   world,
   RAPIER,
-  eventQueue,
   spacecraft,
   station,
 }) {
@@ -56,21 +55,20 @@ export function createDockingSystem({
       station,
     });
 
-  const eventHandler =
+    const eventHandler =
     createDockingEventHandler({
-      eventQueue,
       spacecraft,
       station,
-
+  
       onSensorChange(started) {
         insideSensor = started;
       },
-
+  
       onCrash() {
         jointController.remove();
-
+  
         setState(DockingState.CRASHED);
-
+  
         spacecraft.stopLinearMotion();
         spacecraft.stopAngularMotion();
       },
@@ -130,10 +128,23 @@ export function createDockingSystem({
   }
 
   
-  function processEvents() {
-    eventHandler.process();
+  function handleCollisionEvent(
+    handle1,
+    handle2,
+    started
+  ) {
+    eventHandler.handleCollisionEvent(
+      handle1,
+      handle2,
+      started
+    );
   }
-
+  
+  function handleContactForceEvent(event) {
+    eventHandler.handleContactForceEvent(
+      event
+    );
+  }
   
   function afterPhysicsStep() {
     telemetry.updateMetrics();
@@ -298,7 +309,8 @@ export function createDockingSystem({
 
   return {
     beforePhysicsStep,
-    processEvents,
+    handleCollisionEvent,
+    handleContactForceEvent,
     afterPhysicsStep,
     canControl,
     undock,

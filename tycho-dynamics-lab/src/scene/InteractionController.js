@@ -1,34 +1,38 @@
 import * as THREE from "three";
 
 const CONTROLLED_KEYS = new Set([
-  "KeyW",
-  "KeyS",
-  "KeyA",
-  "KeyD",
-  "KeyR",
-  "KeyF",
-  "KeyQ",
-  "KeyE",
-  "ArrowUp",
-  "ArrowDown",
-  "ArrowLeft",
-  "ArrowRight",
-  "Space",
-  "KeyX",
-  "KeyT",
-  "KeyU",
-]);
+    "KeyW",
+    "KeyS",
+    "KeyA",
+    "KeyD",
+    "KeyR",
+    "KeyF",
+    "KeyQ",
+    "KeyE",
+    "ArrowUp",
+    "ArrowDown",
+    "ArrowLeft",
+    "ArrowRight",
+    "Space",
+    "KeyX",
+    "KeyT",
+    "KeyU",
+    "KeyP",
+    "KeyV",
+  ]);
 
-export function createInteractionController({
-  scene,
-  camera,
-  renderer,
-  controls,
-  spacecraft,
-  station,
-  onReset,
-  onUndock,
-}) {
+  export function createInteractionController({
+    scene,
+    camera,
+    renderer,
+    controls,
+    spacecraft,
+    station,
+    onReset,
+    onUndock,
+    onLaunchProbe,
+    onToggleTrajectory,
+  }) {
   const pressedKeys = new Set();
 
   const raycaster =
@@ -137,7 +141,23 @@ export function createInteractionController({
     if (event.code === "KeyU") {
       onUndock?.();
       pressedKeys.delete(event.code);
+
+
     }
+
+    if (event.code === "KeyP") {
+        onLaunchProbe?.();
+      
+        pressedKeys.delete(event.code);
+        return;
+      }
+      
+      if (event.code === "KeyV") {
+        onToggleTrajectory?.();
+      
+        pressedKeys.delete(event.code);
+        return;
+      }
   }
 
   function handleKeyUp(event) {

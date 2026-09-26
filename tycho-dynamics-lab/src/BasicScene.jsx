@@ -9,6 +9,15 @@ import { createSpacecraft } from "./scene/spacecraft/Spacecraft";
 import { createDockingStation } from "./scene/docking/DockingStation";
 import { createDockingSystem } from "./scene/docking/DockingSystem";
 
+  import {
+    createProbeSystem,
+  } from "./scene/projectiles/ProbeSystem";
+  
+  import {
+    createTargetField,
+  } from "./scene/projectiles/TargetField";
+import { createPhysicsEventRouter } from "./scene/PhysicsEventRouter";
+
 let rapierInitializationPromise = null;
 
 function initializeRapier() {
@@ -62,6 +71,11 @@ export default function BasicScene({
       const eventQueue =
         new RAPIER.EventQueue(true);
 
+        const physicsEvents =
+  createPhysicsEventRouter(
+    eventQueue
+  );
+
       const spacecraft = createSpacecraft(
         scene,
         world,
@@ -75,56 +89,88 @@ export default function BasicScene({
           RAPIER
         );
 
+        const targetField =
+  createTargetField({
+    scene,
+    world,
+    RAPIER,
+  });
         const dockingSystem =
         createDockingSystem({
           world,
           RAPIER,
-          eventQueue,
           spacecraft,
           station,
         });
+        const probeSystem =
+  createProbeSystem({
+    scene,
+    world,
+    RAPIER,
+    spacecraft,
+    station,
+    targetField,
+  });
 
-        const interactions =
-        createInteractionController({
-          scene,
-          camera,
-          renderer,
-          controls,
-          spacecraft,
-          station,
-      
-          onReset() {
-            dockingSystem.reset();
-      
-            spacecraft.reset();
-      
-            onTelemetry?.(
-              dockingSystem.getTelemetry()
-            );
-          },
-      
-          onUndock() {
-            dockingSystem.undock();
-      
-            onTelemetry?.(
-              dockingSystem.getTelemetry()
-            );
-          },
-        });
+  const removeDockingListener =
+  physicsEvents.addListener(
+    dockingSystem
+  );
+
+const removeProbeListener =
+  physicsEvents.addListener(
+    probeSystem
+  );
+       const interactions =
+  createInteractionController({
+    scene,
+    camera,
+    renderer,
+    controls,
+    spacecraft,
+    station,
+
+    onReset() {
+      dockingSystem.reset();
+      spacecraft.reset();
+
+      onTelemetry?.(
+        dockingSystem.getTelemetry()
+      );
+    },
+
+    onUndock() {
+      dockingSystem.undock();
+
+      onTelemetry?.(
+        dockingSystem.getTelemetry()
+      );
+    },
+
+    onLaunchProbe() {
+      probeSystem.launch();
+    },
+
+    onToggleTrajectory() {
+      probeSystem.toggleTrajectory();
+    },
+  });
 
       const simulation =
-        startSimulationLoop({
-          renderer,
-          scene,
-          camera,
-          world,
-          eventQueue,
-          spacecraft,
-          dockingSystem,
-          pressedKeys:
-            interactions.pressedKeys,
-          onTelemetry,
-        });
+  startSimulationLoop({
+    renderer,
+    scene,
+    camera,
+    world,
+    eventQueue,
+    physicsEvents,
+    spacecraft,
+    dockingSystem,
+    probeSystem,
+    pressedKeys:
+      interactions.pressedKeys,
+    onTelemetry,
+  });
 
       onTelemetry?.(
         dockingSystem.getTelemetry()
@@ -133,10 +179,18 @@ export default function BasicScene({
       cleanupScene = () => {
         simulation.stop();
         interactions.dispose();
-
+      
+        removeDockingListener();
+        removeProbeListener();
+      
+        physicsEvents.clear();
+      
+        probeSystem.dispose();
+        targetField.dispose();
+      
         eventQueue.free();
         world.free();
-
+      
         environment.dispose();
       };
     }
