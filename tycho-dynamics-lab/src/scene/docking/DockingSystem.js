@@ -1,35 +1,30 @@
 import * as THREE from "three";
 
-export const DockingState = Object.freeze({
-  APPROACH: "approach",
-  IN_RANGE: "in-range",
-  DOCKED: "docked",
-  CRASHED: "crashed",
-});
+import {
+  DockingState,
+  DOCKING_RULES,
+} from "./system/DockingConfig";
 
-const DOCKING_RULES = Object.freeze({
-  maximumSpeed: 0.25,
-  maximumAngularSpeed: 0.15,
-  maximumAlignmentAngle:
-    THREE.MathUtils.degToRad(7),
-  maximumLateralOffset: 0.35,
-  maximumCaptureDistance: 0.8,
-  crashForce: 5000,
-});
+import {
+  createDockingTelemetry,
+} from "./system/DockingTelemetry";
+
+import {
+  createCaptureController,
+} from "./system/CaptureController";
+
+import {
+  createDockingJointController,
+} from "./system/DockingJointController";
+
+import {
+  createDockingEventHandler,
+} from "./system/DockingEventHandler";
 
 
-const SPACECRAFT_DOCKING_POINT = {
-  x: 0,
-  y: 0,
-  z: -2.7,
-};
-
-const IDENTITY_ROTATION = {
-  x: 0,
-  y: 0,
-  z: 0,
-  w: 1,
-};
+export {
+  DockingState,
+} from "./system/DockingConfig";
 
 export function createDockingSystem({
   world,
@@ -40,60 +35,46 @@ export function createDockingSystem({
 }) {
   let state = DockingState.APPROACH;
   let insideSensor = false;
-  let lastImpactForce = 0;
-  let dockingJoint = null;
 
-  const spacecraftHandle =
-    spacecraft.collider.handle;
+  const telemetry =
+    createDockingTelemetry({
+      spacecraft,
+      station,
+    });
 
-  const sensorHandle =
-    station.dockingSensor.handle;
+  const captureController =
+    createCaptureController({
+      spacecraft,
+      telemetry,
+    });
 
-  const frameHandles = new Set(
-    station.frameColliders.map(
-      (collider) => collider.handle
-    )
-  );
+  const jointController =
+    createDockingJointController({
+      world,
+      RAPIER,
+      spacecraft,
+      station,
+    });
 
-  const spacecraftPosition =
-    new THREE.Vector3();
+  const eventHandler =
+    createDockingEventHandler({
+      eventQueue,
+      spacecraft,
+      station,
 
-  const spacecraftDockingPosition =
-    new THREE.Vector3();
+      onSensorChange(started) {
+        insideSensor = started;
+      },
 
-  const stationPosition =
-    new THREE.Vector3();
+      onCrash() {
+        jointController.remove();
 
-  const linearVelocity =
-    new THREE.Vector3();
+        setState(DockingState.CRASHED);
 
-  const angularVelocity =
-    new THREE.Vector3();
-
-  const spacecraftForward =
-    new THREE.Vector3();
-
-  const expectedForward =
-    new THREE.Vector3(0, 0, -1);
-
-  const orientation =
-    new THREE.Quaternion();
-
-  const metrics = {
-    speed: 0,
-    angularSpeed: 0,
-    alignmentAngle: 0,
-    lateralOffset: 0,
-    distance: 0,
-
-    checks: {
-      speed: true,
-      angularSpeed: true,
-      alignment: true,
-      lateralOffset: true,
-      distance: true,
-    },
-  };
+        spacecraft.stopLinearMotion();
+        spacecraft.stopAngularMotion();
+      },
+    });
 
   function setState(nextState) {
     if (state === nextState) {
@@ -104,248 +85,74 @@ export function createDockingSystem({
     station.setStatus(nextState);
   }
 
-  function containsPair(
-    handle1,
-    handle2,
-    firstTarget,
-    secondTarget
-  ) {
+  function isSafeToCapture() {
+    const { checks } =
+      telemetry.metrics;
+
     return (
-      (handle1 === firstTarget &&
-        handle2 === secondTarget) ||
-      (handle1 === secondTarget &&
-        handle2 === firstTarget)
+      checks.speed &&
+      checks.angularSpeed &&
+      checks.alignment &&
+      checks.lateralOffset &&
+      checks.distance
     );
   }
 
-  function createDockingJoint() {
-    if (dockingJoint) {
+  function isReadyForHardLock() {
+    const metrics =
+      telemetry.metrics;
+
+    return (
+      metrics.distance <=
+        DOCKING_RULES.hardLockDistance &&
+      metrics.speed <=
+        DOCKING_RULES.hardLockSpeed &&
+      metrics.angularSpeed <=
+        DOCKING_RULES
+          .hardLockAngularSpeed &&
+      metrics.alignmentAngle <=
+        THREE.MathUtils.radToDeg(
+          DOCKING_RULES
+            .hardLockAlignmentAngle
+        )
+    );
+  }
+
+
+  function beforePhysicsStep() {
+    if (
+      state !== DockingState.CAPTURING
+    ) {
       return;
     }
 
-    spacecraft.stopLinearMotion();
-    spacecraft.stopAngularMotion();
+    captureController.apply();
+  }
 
   
-    const jointData =
-      RAPIER.JointData.fixed(
-        {
-          x: 0,
-          y: 0,
-          z: 0,
-        },
-        IDENTITY_ROTATION,
-        SPACECRAFT_DOCKING_POINT,
-        IDENTITY_ROTATION
-      );
-
-    dockingJoint =
-      world.createImpulseJoint(
-        jointData,
-        station.rigidBody,
-        spacecraft.rigidBody,
-        true
-      );
-  }
-
-  function removeDockingJoint() {
-    if (!dockingJoint) {
-      return;
-    }
-
-    world.removeImpulseJoint(
-      dockingJoint,
-      true
-    );
-
-    dockingJoint = null;
-  }
-
-  function processCollisionEvents() {
-    eventQueue.drainCollisionEvents(
-      (handle1, handle2, started) => {
-        const isSensorEvent =
-          containsPair(
-            handle1,
-            handle2,
-            spacecraftHandle,
-            sensorHandle
-          );
-
-        if (isSensorEvent) {
-          insideSensor = started;
-        }
-      }
-    );
-  }
-
-  function processContactForceEvents() {
-    eventQueue.drainContactForceEvents(
-      (event) => {
-        const handle1 = event.collider1();
-        const handle2 = event.collider2();
-
-        const hitSpacecraft =
-          handle1 === spacecraftHandle ||
-          handle2 === spacecraftHandle;
-
-        const hitStation =
-          frameHandles.has(handle1) ||
-          frameHandles.has(handle2);
-
-        if (!hitSpacecraft || !hitStation) {
-          return;
-        }
-
-        const impactForce =
-          event.totalForceMagnitude();
-
-        lastImpactForce = Math.max(
-          lastImpactForce,
-          impactForce
-        );
-
-        if (
-          impactForce >=
-          DOCKING_RULES.crashForce
-        ) {
-          removeDockingJoint();
-
-          setState(
-            DockingState.CRASHED
-          );
-
-          spacecraft.stopLinearMotion();
-          spacecraft.stopAngularMotion();
-        }
-      }
-    );
-  }
-
   function processEvents() {
-    processCollisionEvents();
-    processContactForceEvents();
+    eventHandler.process();
   }
 
-  function updateMetrics() {
-    const position =
-      spacecraft.rigidBody.translation();
+  
+  function afterPhysicsStep() {
+    telemetry.updateMetrics();
 
-    const rotation =
-      spacecraft.rigidBody.rotation();
-
-    const linvel =
-      spacecraft.rigidBody.linvel();
-
-    const angvel =
-      spacecraft.rigidBody.angvel();
-
-    spacecraftPosition.set(
-      position.x,
-      position.y,
-      position.z
-    );
-
-    orientation.set(
-      rotation.x,
-      rotation.y,
-      rotation.z,
-      rotation.w
-    );
-
-    station.group.getWorldPosition(
-      stationPosition
-    );
-
-   
-    spacecraftDockingPosition
-      .set(
-        SPACECRAFT_DOCKING_POINT.x,
-        SPACECRAFT_DOCKING_POINT.y,
-        SPACECRAFT_DOCKING_POINT.z
-      )
-      .applyQuaternion(orientation)
-      .add(spacecraftPosition);
-
-    linearVelocity.set(
-      linvel.x,
-      linvel.y,
-      linvel.z
-    );
-
-    angularVelocity.set(
-      angvel.x,
-      angvel.y,
-      angvel.z
-    );
-
-    spacecraftForward
-      .set(0, 0, -1)
-      .applyQuaternion(orientation)
-      .normalize();
-
-    metrics.speed =
-      linearVelocity.length();
-
-    metrics.angularSpeed =
-      angularVelocity.length();
-
-    metrics.alignmentAngle =
-      THREE.MathUtils.radToDeg(
-        spacecraftForward.angleTo(
-          expectedForward
-        )
-      );
-
-    const offsetX =
-      spacecraftDockingPosition.x -
-      stationPosition.x;
-
-    const offsetY =
-      spacecraftDockingPosition.y -
-      stationPosition.y;
-
-    metrics.lateralOffset = Math.sqrt(
-      offsetX * offsetX +
-      offsetY * offsetY
-    );
-
-    metrics.distance =
-      spacecraftDockingPosition.distanceTo(
-        stationPosition
-      );
-
-    metrics.checks.speed =
-      metrics.speed <=
-      DOCKING_RULES.maximumSpeed;
-
-    metrics.checks.angularSpeed =
-      metrics.angularSpeed <=
-      DOCKING_RULES.maximumAngularSpeed;
-
-    metrics.checks.alignment =
-      metrics.alignmentAngle <=
-      THREE.MathUtils.radToDeg(
-        DOCKING_RULES.maximumAlignmentAngle
-      );
-
-    metrics.checks.lateralOffset =
-      metrics.lateralOffset <=
-      DOCKING_RULES.maximumLateralOffset;
-
-    metrics.checks.distance =
-      metrics.distance <=
-      DOCKING_RULES.maximumCaptureDistance;
-  }
-
-  function update() {
-    updateMetrics();
-
-    if (state === DockingState.CRASHED) {
+    if (
+      state === DockingState.CRASHED ||
+      state === DockingState.DOCKED
+    ) {
       return;
     }
 
-    if (state === DockingState.DOCKED) {
+    if (
+      state === DockingState.CAPTURING
+    ) {
+      if (isReadyForHardLock()) {
+        jointController.create();
+        setState(DockingState.DOCKED);
+      }
+
       return;
     }
 
@@ -354,46 +161,34 @@ export function createDockingSystem({
       return;
     }
 
-    const validDocking =
-      metrics.checks.speed &&
-      metrics.checks.angularSpeed &&
-      metrics.checks.alignment &&
-      metrics.checks.lateralOffset &&
-      metrics.checks.distance;
-
-    if (!validDocking) {
+    if (isSafeToCapture()) {
+      setState(DockingState.CAPTURING);
+    } else {
       setState(DockingState.IN_RANGE);
-      return;
     }
-
-    createDockingJoint();
-    setState(DockingState.DOCKED);
   }
 
   function canControl() {
     return (
-      state !== DockingState.DOCKED &&
-      state !== DockingState.CRASHED
+      state === DockingState.APPROACH ||
+      state === DockingState.IN_RANGE
     );
   }
 
-  function undock() {
-    if (
-      state !== DockingState.DOCKED ||
-      !dockingJoint
-    ) {
-      return;
-    }
+  function clearForces() {
+    spacecraft.rigidBody.resetForces(
+      true
+    );
 
-    removeDockingJoint();
-
-    insideSensor = false;
-    lastImpactForce = 0;
+    spacecraft.rigidBody.resetTorques(
+      true
+    );
 
     spacecraft.stopLinearMotion();
     spacecraft.stopAngularMotion();
+  }
 
-   
+  function applySeparationImpulse() {
     spacecraft.rigidBody.applyImpulse(
       {
         x: 0,
@@ -402,8 +197,39 @@ export function createDockingSystem({
       },
       true
     );
+  }
 
+  function undock() {
+    const canUndock =
+      state === DockingState.DOCKED ||
+      state === DockingState.CAPTURING;
+
+    if (!canUndock) {
+      return;
+    }
+
+    jointController.remove();
+    clearForces();
+
+    insideSensor = false;
+    eventHandler.reset();
+
+    applySeparationImpulse();
     setState(DockingState.APPROACH);
+  }
+
+  function reset() {
+    jointController.remove();
+    clearForces();
+
+    state = DockingState.APPROACH;
+    insideSensor = false;
+
+    eventHandler.reset();
+
+    station.setStatus(
+      DockingState.APPROACH
+    );
   }
 
   function getState() {
@@ -411,21 +237,33 @@ export function createDockingSystem({
   }
 
   function getTelemetry() {
+   
+    telemetry.updateMetrics();
+
     return {
       state,
       insideSensor,
 
-      speed: metrics.speed,
-      angularSpeed: metrics.angularSpeed,
+      speed:
+        telemetry.metrics.speed,
+
+      angularSpeed:
+        telemetry.metrics.angularSpeed,
+
       alignmentAngle:
-        metrics.alignmentAngle,
+        telemetry.metrics.alignmentAngle,
+
       lateralOffset:
-        metrics.lateralOffset,
-      distance: metrics.distance,
-      impactForce: lastImpactForce,
+        telemetry.metrics.lateralOffset,
+
+      distance:
+        telemetry.metrics.distance,
+
+      impactForce:
+        eventHandler.getLastImpactForce(),
 
       checks: {
-        ...metrics.checks,
+        ...telemetry.metrics.checks,
       },
 
       limits: {
@@ -433,18 +271,22 @@ export function createDockingSystem({
           DOCKING_RULES.maximumSpeed,
 
         maximumAngularSpeed:
-          DOCKING_RULES.maximumAngularSpeed,
+          DOCKING_RULES
+            .maximumAngularSpeed,
 
         maximumAlignmentAngle:
           THREE.MathUtils.radToDeg(
-            DOCKING_RULES.maximumAlignmentAngle
+            DOCKING_RULES
+              .maximumAlignmentAngle
           ),
 
         maximumLateralOffset:
-          DOCKING_RULES.maximumLateralOffset,
+          DOCKING_RULES
+            .maximumLateralOffset,
 
         maximumCaptureDistance:
-          DOCKING_RULES.maximumCaptureDistance,
+          DOCKING_RULES
+            .maximumCaptureDistance,
 
         crashForce:
           DOCKING_RULES.crashForce,
@@ -452,29 +294,16 @@ export function createDockingSystem({
     };
   }
 
-  function reset() {
-    removeDockingJoint();
-
-    state = DockingState.APPROACH;
-    insideSensor = false;
-    lastImpactForce = 0;
-
-    station.setStatus(
-      DockingState.APPROACH
-    );
-
-    updateMetrics();
-  }
-
-  updateMetrics();
+  telemetry.updateMetrics();
 
   return {
+    beforePhysicsStep,
     processEvents,
-    update,
+    afterPhysicsStep,
     canControl,
     undock,
+    reset,
     getState,
     getTelemetry,
-    reset,
   };
 }

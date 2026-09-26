@@ -6,30 +6,36 @@ const STATION_Z = -7;
 const SENSOR_POSITION_Z = 1.25;
 
 const STATUS_STYLES = {
-  approach: {
-    color: 0xf8fafc,
-    emissive: 0x000000,
-    intensity: 0,
-  },
-
-  "in-range": {
-    color: 0x38bdf8,
-    emissive: 0x075985,
-    intensity: 2,
-  },
-
-  docked: {
-    color: 0x4ade80,
-    emissive: 0x166534,
-    intensity: 3,
-  },
-
-  crashed: {
-    color: 0xf87171,
-    emissive: 0x991b1b,
-    intensity: 4,
-  },
-};
+    approach: {
+      color: 0xf8fafc,
+      emissive: 0x000000,
+      intensity: 0,
+    },
+  
+    "in-range": {
+      color: 0x38bdf8,
+      emissive: 0x075985,
+      intensity: 2,
+    },
+  
+    capturing: {
+      color: 0xc084fc,
+      emissive: 0x7e22ce,
+      intensity: 3,
+    },
+  
+    docked: {
+      color: 0x4ade80,
+      emissive: 0x166534,
+      intensity: 3,
+    },
+  
+    crashed: {
+      color: 0xf87171,
+      emissive: 0x991b1b,
+      intensity: 4,
+    },
+  };
 
 export function createDockingStation(
   scene,

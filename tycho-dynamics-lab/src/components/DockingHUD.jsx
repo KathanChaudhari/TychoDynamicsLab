@@ -5,18 +5,28 @@ const STATUS_STYLES = {
       background: "bg-slate-500/20",
       border: "border-slate-400/40",
     },
+  
     "in-range": {
       label: "IN RANGE",
       color: "text-sky-300",
       background: "bg-sky-500/20",
       border: "border-sky-400/40",
     },
+  
+    capturing: {
+      label: "CAPTURING",
+      color: "text-purple-300",
+      background: "bg-purple-500/20",
+      border: "border-purple-400/40",
+    },
+  
     docked: {
       label: "DOCKED",
       color: "text-emerald-300",
       background: "bg-emerald-500/20",
       border: "border-emerald-400/40",
     },
+  
     crashed: {
       label: "CRASHED",
       color: "text-red-300",
@@ -136,6 +146,12 @@ const STATUS_STYLES = {
               telemetry.limits.crashForce
             }
           />
+          <MetricRow
+  label="CAPTURE DISTANCE"
+  value={telemetry.distance.toFixed(2)}
+  unit="m"
+  valid={telemetry.checks.distance}
+/>
         </div>
   
         <footer className="border-t border-white/10 px-4 py-3">

@@ -40,12 +40,18 @@ export function startSimulationLoop({
           ? pressedKeys
           : EMPTY_KEYS;
 
-      spacecraft.applyControls(activeKeys);
+     
+      spacecraft.applyControls(
+        activeKeys
+      );
+
+     
+      dockingSystem.beforePhysicsStep();
 
       world.step(eventQueue);
 
       dockingSystem.processEvents();
-      dockingSystem.update();
+      dockingSystem.afterPhysicsStep();
 
       physicsAccumulator -=
         FIXED_TIME_STEP;
