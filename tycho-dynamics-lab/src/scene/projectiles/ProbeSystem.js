@@ -12,10 +12,7 @@ import {
 const PROBE_SPEED = 8;
 const MAXIMUM_PROBES = 20;
 
-/*
- * Slightly beyond the spacecraft nose,
- * which is located around local z = -2.7.
- */
+
 const LOCAL_LAUNCH_POSITION =
   new THREE.Vector3(0, 0, -3.1);
 
@@ -114,9 +111,6 @@ export function createProbeSystem({
       velocity.z
     );
 
-    /*
-     * Impulse = mass * desired velocity change.
-     */
     launchImpulse
       .copy(launchDirection)
       .multiplyScalar(
@@ -222,10 +216,7 @@ export function createProbeSystem({
   }
 
   function handleContactForceEvent() {
-    /*
-     * Probe hits currently use collision-start
-     * events, so contact-force data isn't needed.
-     */
+   
   }
 
   function afterPhysicsStep(deltaTime) {
@@ -238,10 +229,7 @@ export function createProbeSystem({
       }
     }
 
-    /*
-     * Remove bodies after Rapier event callbacks
-     * have finished.
-     */
+    
     for (const probe of pendingRemoval) {
       removeProbe(probe);
     }

@@ -119,10 +119,7 @@ export function createDockingTelemetry({
       angvel.z
     );
 
-    /*
-     * Convert the local nose position into
-     * a world-space docking position.
-     */
+  
     spacecraftDockingPosition
       .set(
         SPACECRAFT_DOCKING_POINT.x,

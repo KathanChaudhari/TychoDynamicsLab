@@ -50,10 +50,7 @@ export function startSimulationLoop({
 
       world.step(eventQueue);
 
-      /*
-       * Drain once and distribute the events
-       * to docking and projectile systems.
-       */
+   
       physicsEvents.drain();
 
       dockingSystem.afterPhysicsStep();

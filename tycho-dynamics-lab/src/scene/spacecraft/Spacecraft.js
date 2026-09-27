@@ -1,14 +1,29 @@
-import { createSpacecraftModel } from "./SpacecraftModel.js";
-import { createSpacecraftPhysics } from "./SpacecraftPhysics.js";
-import { createFlightController } from "./FlightController.js";
+import {
+  createSpacecraftModel,
+} from "./SpacecraftModel.js";
+
+import {
+  createSpacecraftPhysics,
+} from "./SpacecraftPhysics.js";
+
+import {
+  createFlightController,
+} from "./FlightController.js";
 
 export function createSpacecraft(
   scene,
   world,
-  RAPIER
+  RAPIER,
+  options = {}
 ) {
   const model =
-    createSpacecraftModel(scene);
+    createSpacecraftModel(
+      scene,
+      {
+        onLoadingChange:
+          options.onLoadingChange,
+      }
+    );
 
   const physics =
     createSpacecraftPhysics({
@@ -36,10 +51,25 @@ export function createSpacecraft(
     model.hideVelocityArrow();
   }
 
+  function dispose() {
+    model.dispose();
+  }
+
   return {
     group: model.group,
+
+    modelRoot:
+      model.modelRoot,
+
     velocityArrow:
       model.velocityArrow,
+
+    modelReady:
+      model.ready,
+
+    get loadedModel() {
+      return model.orionModel;
+    },
 
     rigidBody:
       physics.rigidBody,
@@ -65,5 +95,6 @@ export function createSpacecraft(
       physics.stopAngularMotion,
 
     reset,
+    dispose,
   };
 }

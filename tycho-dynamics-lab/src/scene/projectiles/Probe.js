@@ -79,11 +79,7 @@ export function createProbe({
       rigidBody
     );
 
-  /*
-   * Impulse changes velocity immediately:
-   *
-   * change in velocity = impulse / mass
-   */
+
   rigidBody.applyImpulse(
     {
       x: launchImpulse.x,

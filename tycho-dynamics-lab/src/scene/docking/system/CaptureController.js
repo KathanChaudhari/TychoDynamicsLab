@@ -123,13 +123,7 @@ export function createCaptureController({
       );
     }
 
-    /*
-     * Rotational PD controller:
-     *
-     * Torque =
-     * angularError * strength
-     * - angularVelocity * damping
-     */
+  
     captureTorque
       .copy(rotationErrorAxis)
       .multiplyScalar(

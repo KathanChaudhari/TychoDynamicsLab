@@ -57,11 +57,7 @@ export function createProbeTrajectory(
       const arrayIndex =
         index * 3;
 
-      /*
-       * p(t) =
-       * p0 + velocity * time
-       * + 0.5 * gravity * time²
-       */
+    
       positions[arrayIndex] =
         startPosition.x +
         initialVelocity.x * time +

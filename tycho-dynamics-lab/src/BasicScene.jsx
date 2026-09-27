@@ -1,22 +1,45 @@
-import { useEffect, useRef } from "react";
+import {
+  useEffect,
+  useRef,
+} from "react";
+
 import RAPIER from "@dimforge/rapier3d-compat";
 
-import { createSceneEnvironment } from "./scene/SceneEnvironment";
-import { createInteractionController } from "./scene/InteractionController";
-import { startSimulationLoop } from "./scene/SimulationLoop";
+import {
+  createSceneEnvironment,
+} from "./scene/SceneEnvironment";
 
-import { createSpacecraft } from "./scene/spacecraft/Spacecraft";
-import { createDockingStation } from "./scene/docking/DockingStation";
-import { createDockingSystem } from "./scene/docking/DockingSystem";
+import {
+  createInteractionController,
+} from "./scene/InteractionController";
 
-  import {
-    createProbeSystem,
-  } from "./scene/projectiles/ProbeSystem";
-  
-  import {
-    createTargetField,
-  } from "./scene/projectiles/TargetField";
-import { createPhysicsEventRouter } from "./scene/PhysicsEventRouter";
+import {
+  startSimulationLoop,
+} from "./scene/SimulationLoop";
+
+import {
+  createPhysicsEventRouter,
+} from "./scene/PhysicsEventRouter";
+
+import {
+  createSpacecraft,
+} from "./scene/spacecraft/Spacecraft";
+
+import {
+  createDockingStation,
+} from "./scene/docking/DockingStation";
+
+import {
+  createDockingSystem,
+} from "./scene/docking/DockingSystem";
+
+import {
+  createTargetField,
+} from "./scene/projectiles/TargetField";
+
+import {
+  createProbeSystem,
+} from "./scene/projectiles/ProbeSystem";
 
 let rapierInitializationPromise = null;
 
@@ -31,6 +54,7 @@ function initializeRapier() {
 
 export default function BasicScene({
   onTelemetry,
+  onLoadingState,
 }) {
   const containerRef = useRef(null);
 
@@ -45,15 +69,45 @@ export default function BasicScene({
     let cancelled = false;
     let cleanupScene = null;
 
+    function setLoadingState(
+      status,
+      progress,
+      message
+    ) {
+      if (cancelled) {
+        return;
+      }
+
+      onLoadingState?.({
+        status,
+        progress,
+        message,
+      });
+    }
+
     async function initialize() {
+      setLoadingState(
+        "loading",
+        5,
+        "Initializing physics"
+      );
+
       await initializeRapier();
 
       if (cancelled) {
         return;
       }
 
+      setLoadingState(
+        "loading",
+        10,
+        "Building scene"
+      );
+
       const environment =
-        createSceneEnvironment(container);
+        createSceneEnvironment(
+          container
+        );
 
       const {
         scene,
@@ -62,25 +116,79 @@ export default function BasicScene({
         controls,
       } = environment;
 
-      const world = new RAPIER.World({
-        x: 0,
-        y: 0,
-        z: 0,
-      });
+      const world =
+        new RAPIER.World({
+          x: 0,
+          y: 0,
+          z: 0,
+        });
 
       const eventQueue =
         new RAPIER.EventQueue(true);
 
-        const physicsEvents =
-  createPhysicsEventRouter(
-    eventQueue
-  );
+      const physicsEvents =
+        createPhysicsEventRouter(
+          eventQueue
+        );
 
-      const spacecraft = createSpacecraft(
-        scene,
-        world,
-        RAPIER
-      );
+    
+      const spacecraft =
+        createSpacecraft(
+          scene,
+          world,
+          RAPIER,
+          {
+            onLoadingChange(state) {
+              if (
+                state.status ===
+                "loading"
+              ) {
+                const modelProgress =
+                  state.progress ?? 0;
+
+               
+                const mappedProgress =
+                  10 +
+                  modelProgress * 0.75;
+
+                setLoadingState(
+                  "loading",
+                  Math.round(
+                    mappedProgress
+                  ),
+                  `Loading ${state.asset}`
+                );
+              }
+
+              if (
+                state.status ===
+                "ready"
+              ) {
+                setLoadingState(
+                  "loading",
+                  88,
+                  "Preparing simulation"
+                );
+              }
+
+              if (
+                state.status ===
+                "error"
+              ) {
+                console.warn(
+                  "Orion loading failed:",
+                  state.error
+                );
+
+                setLoadingState(
+                  "loading",
+                  88,
+                  "Using fallback spacecraft"
+                );
+              }
+            },
+          }
+        );
 
       const station =
         createDockingStation(
@@ -89,119 +197,156 @@ export default function BasicScene({
           RAPIER
         );
 
-        const targetField =
-  createTargetField({
-    scene,
-    world,
-    RAPIER,
-  });
-        const dockingSystem =
+      const targetField =
+        createTargetField({
+          scene,
+          world,
+          RAPIER,
+        });
+
+      const dockingSystem =
         createDockingSystem({
           world,
           RAPIER,
           spacecraft,
           station,
         });
-        const probeSystem =
-  createProbeSystem({
-    scene,
-    world,
-    RAPIER,
-    spacecraft,
-    station,
-    targetField,
-  });
 
-  const removeDockingListener =
-  physicsEvents.addListener(
-    dockingSystem
-  );
+      const probeSystem =
+        createProbeSystem({
+          scene,
+          world,
+          RAPIER,
+          spacecraft,
+          station,
+          targetField,
+        });
 
-const removeProbeListener =
-  physicsEvents.addListener(
-    probeSystem
-  );
-       const interactions =
-  createInteractionController({
-    scene,
-    camera,
-    renderer,
-    controls,
-    spacecraft,
-    station,
+      const removeDockingListener =
+        physicsEvents.addListener(
+          dockingSystem
+        );
 
-    onReset() {
-      dockingSystem.reset();
-      spacecraft.reset();
+      const removeProbeListener =
+        physicsEvents.addListener(
+          probeSystem
+        );
 
-      onTelemetry?.(
-        dockingSystem.getTelemetry()
-      );
-    },
+      const interactions =
+        createInteractionController({
+          scene,
+          camera,
+          renderer,
+          controls,
+          spacecraft,
+          station,
 
-    onUndock() {
-      dockingSystem.undock();
+          onReset() {
+            dockingSystem.reset();
+            spacecraft.reset();
 
-      onTelemetry?.(
-        dockingSystem.getTelemetry()
-      );
-    },
+            onTelemetry?.(
+              dockingSystem.getTelemetry()
+            );
+          },
 
-    onLaunchProbe() {
-      probeSystem.launch();
-    },
+          onUndock() {
+            dockingSystem.undock();
 
-    onToggleTrajectory() {
-      probeSystem.toggleTrajectory();
-    },
-  });
+            onTelemetry?.(
+              dockingSystem.getTelemetry()
+            );
+          },
+
+          onLaunchProbe() {
+            probeSystem.launch();
+          },
+
+          onToggleTrajectory() {
+            probeSystem.toggleTrajectory();
+          },
+        });
 
       const simulation =
-  startSimulationLoop({
-    renderer,
-    scene,
-    camera,
-    world,
-    eventQueue,
-    physicsEvents,
-    spacecraft,
-    dockingSystem,
-    probeSystem,
-    pressedKeys:
-      interactions.pressedKeys,
-    onTelemetry,
-  });
+        startSimulationLoop({
+          renderer,
+          scene,
+          camera,
+          world,
+          eventQueue,
+          physicsEvents,
+          spacecraft,
+          dockingSystem,
+          probeSystem,
+
+          pressedKeys:
+            interactions.pressedKeys,
+
+          onTelemetry,
+        });
 
       onTelemetry?.(
         dockingSystem.getTelemetry()
+      );
+
+      spacecraft.modelReady.then(
+        (loadedModel) => {
+          if (cancelled) {
+            return;
+          }
+
+          setLoadingState(
+            "ready",
+            100,
+            loadedModel
+              ? "Simulation ready"
+              : "Using primitive spacecraft"
+          );
+        }
       );
 
       cleanupScene = () => {
         simulation.stop();
         interactions.dispose();
-      
+
         removeDockingListener();
         removeProbeListener();
-      
+
         physicsEvents.clear();
-      
+
         probeSystem.dispose();
         targetField.dispose();
-      
+
+        spacecraft.dispose();
+
         eventQueue.free();
         world.free();
-      
+
         environment.dispose();
       };
     }
 
-    initialize();
+    initialize().catch((error) => {
+      console.error(
+        "Simulation initialization failed:",
+        error
+      );
+
+      setLoadingState(
+        "error",
+        0,
+        "Could not start simulation"
+      );
+    });
 
     return () => {
       cancelled = true;
       cleanupScene?.();
     };
-  }, [onTelemetry]);
+  }, [
+    onTelemetry,
+    onLoadingState,
+  ]);
 
   return (
     <div
