@@ -1,0 +1,336 @@
+import * as THREE from "three";
+import { loadGLTFModel } from "../../loaders/loadGLTFModel";
+
+
+
+const GATEWAY_MODEL_URL =
+  "/models/gateway-core.glb";
+
+/*
+ * The Gateway file may use a completely different
+ * scale. We automatically resize its largest
+ * dimension to this value.
+ */
+const GATEWAY_TARGET_SIZE = 12;
+
+/*
+ * The existing docking target is at the origin of
+ * the station group.
+ *
+ * Move Gateway backward along -Z so the primitive
+ * docking ring remains in front of it.
+ */
+const GATEWAY_POSITION =
+  new THREE.Vector3(
+    0,
+    0,
+    -3.5
+  );
+/*
+ * Adjust these values if Gateway loads sideways.
+ */
+const GATEWAY_ROTATION =
+  new THREE.Euler(
+    THREE.MathUtils.degToRad(-25),
+    0,
+    THREE.MathUtils.degToRad(-2)
+  );
+
+function prepareModel(model) {
+  model.traverse((object) => {
+    if (!object.isMesh) {
+      return;
+    }
+
+    object.castShadow = true;
+    object.receiveShadow = true;
+
+    /*
+     * Keep all parts visible while initially
+     * testing this large model.
+     */
+    object.frustumCulled = false;
+  });
+}
+
+function normalizeModelSize(model) {
+  model.rotation.copy(
+    GATEWAY_ROTATION
+  );
+
+  model.updateMatrixWorld(true);
+
+  const initialBox =
+    new THREE.Box3().setFromObject(
+      model
+    );
+
+  const initialSize =
+    initialBox.getSize(
+      new THREE.Vector3()
+    );
+
+  const largestDimension = Math.max(
+    initialSize.x,
+    initialSize.y,
+    initialSize.z
+  );
+
+  if (largestDimension > 0) {
+    const scale =
+      GATEWAY_TARGET_SIZE /
+      largestDimension;
+
+    model.scale.setScalar(scale);
+  }
+
+  model.updateMatrixWorld(true);
+
+  /*
+   * Calculate its center after applying scale.
+   */
+  const scaledBox =
+    new THREE.Box3().setFromObject(
+      model
+    );
+
+  const center =
+    scaledBox.getCenter(
+      new THREE.Vector3()
+    );
+
+  /*
+   * Center Gateway around modelRoot.
+   */
+  model.position.sub(center);
+
+  /*
+   * Then move it behind the existing docking ring.
+   */
+  model.position.add(
+    GATEWAY_POSITION
+  );
+
+  model.updateMatrixWorld(true);
+
+  const finalBox =
+    new THREE.Box3().setFromObject(
+      model
+    );
+
+  const finalSize =
+    finalBox.getSize(
+      new THREE.Vector3()
+    );
+
+  console.log(
+    "Gateway visual dimensions:",
+    {
+      x: finalSize.x,
+      y: finalSize.y,
+      z: finalSize.z,
+    }
+  );
+}
+
+function disposeObject(root) {
+  const geometries = new Set();
+  const materials = new Set();
+  const textures = new Set();
+
+  root.traverse((object) => {
+    if (!object.isMesh) {
+      return;
+    }
+
+    if (
+      object.geometry &&
+      !geometries.has(
+        object.geometry
+      )
+    ) {
+      object.geometry.dispose();
+
+      geometries.add(
+        object.geometry
+      );
+    }
+
+    const objectMaterials =
+      Array.isArray(object.material)
+        ? object.material
+        : [object.material];
+
+    objectMaterials.forEach(
+      (material) => {
+        if (
+          !material ||
+          materials.has(material)
+        ) {
+          return;
+        }
+
+        for (
+          const value of
+          Object.values(material)
+        ) {
+          if (
+            value?.isTexture &&
+            !textures.has(value)
+          ) {
+            value.dispose();
+            textures.add(value);
+          }
+        }
+
+        material.dispose();
+        materials.add(material);
+      }
+    );
+  });
+}
+
+export function createGatewayModel({
+  stationGroup,
+  onLoadingChange,
+}) {
+  const modelRoot =
+    new THREE.Group();
+
+  modelRoot.name =
+    "GatewayVisualRoot";
+
+  stationGroup.add(modelRoot);
+
+  const dockingTargetMarker =
+  new THREE.Mesh(
+    new THREE.SphereGeometry(
+      0.16,
+      16,
+      16
+    ),
+    new THREE.MeshBasicMaterial({
+      color: 0xff00ff,
+      depthTest: false,
+    })
+  );
+
+dockingTargetMarker.name =
+  "GatewayDockingTargetMarker";
+
+dockingTargetMarker.renderOrder =
+  1000;
+
+dockingTargetMarker.position.set(
+  0,
+  0,
+  0
+);
+
+stationGroup.add(
+  dockingTargetMarker
+);
+
+  let gatewayModel = null;
+  let disposed = false;
+
+  onLoadingChange?.({
+    asset: "Gateway core",
+    status: "loading",
+    progress: 0,
+  });
+
+  const ready = loadGLTFModel(
+    GATEWAY_MODEL_URL,
+    (progress) => {
+      onLoadingChange?.({
+        asset: "Gateway core",
+        status: "loading",
+        progress,
+      });
+    }
+  )
+    .then((gltf) => {
+      if (disposed) {
+        disposeObject(gltf.scene);
+        return null;
+      }
+
+      gatewayModel = gltf.scene;
+
+      gatewayModel.name =
+        "GatewayCore";
+
+      prepareModel(gatewayModel);
+      normalizeModelSize(gatewayModel);
+
+      modelRoot.add(gatewayModel);
+
+      console.log(
+        "Gateway loaded:",
+        gatewayModel
+      );
+
+      onLoadingChange?.({
+        asset: "Gateway core",
+        status: "ready",
+        progress: 100,
+      });
+
+      return gatewayModel;
+    })
+    .catch((error) => {
+      console.error(
+        "Could not load Gateway:",
+        error
+      );
+
+      onLoadingChange?.({
+        asset: "Gateway core",
+        status: "error",
+        progress: null,
+        error: error.message,
+      });
+
+      return null;
+    });
+
+  function dispose() {
+    disposed = true;
+
+    if (gatewayModel) {
+      modelRoot.remove(
+        gatewayModel
+      );
+
+      disposeObject(
+        gatewayModel
+      );
+
+      gatewayModel = null;
+    }
+
+    stationGroup.remove(
+      modelRoot
+    );
+
+    stationGroup.remove(
+        dockingTargetMarker
+      );
+      
+      dockingTargetMarker.geometry.dispose();
+      
+      dockingTargetMarker.material.dispose();
+  }
+
+  return {
+    modelRoot,
+    ready,
+
+    get model() {
+      return gatewayModel;
+    },
+
+    dispose,
+  };
+}

@@ -41,6 +41,10 @@ import {
   createProbeSystem,
 } from "./scene/projectiles/ProbeSystem";
 
+import {
+  createGatewayModel,
+} from "./scene/docking/visuals/GatewayModel";
+
 let rapierInitializationPromise = null;
 
 function initializeRapier() {
@@ -196,6 +200,51 @@ export default function BasicScene({
           world,
           RAPIER
         );
+        const gateway =
+  createGatewayModel({
+    stationGroup:
+      station.group,
+
+    onLoadingChange(state) {
+      if (
+        state.status === "loading"
+      ) {
+        const progress =
+          state.progress ?? 0;
+
+       
+        const mappedProgress =
+          35 + progress * 0.55;
+
+        setLoadingState(
+          "loading",
+          Math.round(
+            mappedProgress
+          ),
+          "Loading Gateway core"
+        );
+      }
+
+      if (
+        state.status === "ready"
+      ) {
+        setLoadingState(
+          "loading",
+          92,
+          "Preparing docking systems"
+        );
+      }
+
+      if (
+        state.status === "error"
+      ) {
+        console.warn(
+          "Gateway loading failed:",
+          state.error
+        );
+      }
+    },
+  });
 
       const targetField =
         createTargetField({
@@ -289,18 +338,43 @@ export default function BasicScene({
         dockingSystem.getTelemetry()
       );
 
-      spacecraft.modelReady.then(
-        (loadedModel) => {
+      Promise.all([
+        spacecraft.modelReady,
+        gateway.ready,
+      ]).then(
+        ([
+          loadedSpacecraft,
+          loadedGateway,
+        ]) => {
           if (cancelled) {
             return;
           }
-
+      
+          let message =
+            "Simulation ready";
+      
+          if (
+            !loadedSpacecraft &&
+            !loadedGateway
+          ) {
+            message =
+              "Using primitive models";
+          } else if (
+            !loadedSpacecraft
+          ) {
+            message =
+              "Using primitive spacecraft";
+          } else if (
+            !loadedGateway
+          ) {
+            message =
+              "Using primitive station";
+          }
+      
           setLoadingState(
             "ready",
             100,
-            loadedModel
-              ? "Simulation ready"
-              : "Using primitive spacecraft"
+            message
           );
         }
       );
@@ -317,8 +391,9 @@ export default function BasicScene({
         probeSystem.dispose();
         targetField.dispose();
 
+        gateway.dispose();
         spacecraft.dispose();
-
+        
         eventQueue.free();
         world.free();
 
