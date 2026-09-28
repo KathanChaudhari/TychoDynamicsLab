@@ -34,6 +34,19 @@ const INITIAL_TELEMETRY = {
 
   timeToContact: null,
   impactForce: 0,
+  crashReason: null,
+
+damage: {
+  integrity: 100,
+  maximumIntegrity: 100,
+  percentage: 100,
+  status: "nominal",
+  impactCount: 0,
+  lastDamage: 0,
+  lastImpactForce: 0,
+  maximumImpactForce: 0,
+  destroyed: false,
+},
 
   checks: {
     speed: true,

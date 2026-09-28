@@ -13,7 +13,9 @@ export const MISSION_SCORING =
     timePenaltyPerSecond: 2,
     propellantPenaltyPerKg: 3,
     impactPenaltyDivisor: 50,
+    damagePenaltyPerPercent: 3,
 
     maximumAlignmentBonus: 150,
     maximumVelocityBonus: 100,
+    
   });

@@ -34,6 +34,7 @@ export function createDockingSystem({
 }) {
   let state = DockingState.APPROACH;
   let insideSensor = false;
+  let crashReason = null;
 
   const telemetry =
     createDockingTelemetry({
@@ -56,23 +57,55 @@ export function createDockingSystem({
     });
 
     const eventHandler =
-    createDockingEventHandler({
-      spacecraft,
-      station,
-  
-      onSensorChange(started) {
-        insideSensor = started;
-      },
-  
-      onCrash() {
-        jointController.remove();
-  
-        setState(DockingState.CRASHED);
-  
-        spacecraft.stopLinearMotion();
-        spacecraft.stopAngularMotion();
-      },
-    });
+  createDockingEventHandler({
+    spacecraft,
+    station,
+
+    onSensorChange(started) {
+      insideSensor = started;
+    },
+
+    onImpact(impactForce) {
+      return spacecraft
+        .registerImpact(
+          impactForce
+        );
+    },
+
+    onCrash(
+      impactForce,
+      reason
+    ) {
+      if (
+        state ===
+        DockingState.CRASHED
+      ) {
+        return;
+      }
+
+      crashReason = reason;
+
+      jointController.remove();
+
+      setState(
+        DockingState.CRASHED
+      );
+
+      spacecraft
+        .stopLinearMotion();
+
+      spacecraft
+        .stopAngularMotion();
+
+      console.warn(
+        "Spacecraft crash:",
+        {
+          impactForce,
+          reason,
+        }
+      );
+    },
+  });
 
   function setState(nextState) {
     if (state === nextState) {
@@ -247,6 +280,7 @@ export function createDockingSystem({
 
     state = DockingState.APPROACH;
     insideSensor = false;
+    crashReason = null;
 
     eventHandler.reset();
 
@@ -318,7 +352,10 @@ verticalSpeed:
       impactForce:
         eventHandler
           .getLastImpactForce(),
-  
+          
+          damage:
+  spacecraft
+    .getDamageTelemetry(),
           propellant:
   spacecraft
     .getPropellantTelemetry(),
@@ -355,6 +392,9 @@ verticalSpeed:
   
         crashForce:
           DOCKING_RULES.crashForce,
+          crashReason,
+
+
       },
     };
   }

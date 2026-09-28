@@ -74,6 +74,9 @@ export function startSimulationLoop({
 
       dockingSystem
         .beforePhysicsStep();
+        spacecraft.updateDamage(
+          FIXED_TIME_STEP
+        );
 
       world.step(eventQueue);
 

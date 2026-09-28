@@ -40,6 +40,19 @@ import {
       );
     }
   
+    function getHullDamage(
+      telemetry
+    ) {
+      const integrity =
+        telemetry?.damage
+          ?.integrity ?? 100;
+  
+      return Math.max(
+        0,
+        100 - integrity
+      );
+    }
+  
     function calculateScore(
       telemetry
     ) {
@@ -64,6 +77,11 @@ import {
         maximumImpact /
         MISSION_SCORING
           .impactPenaltyDivisor;
+  
+      const damagePenalty =
+        getHullDamage(telemetry) *
+        MISSION_SCORING
+          .damagePenaltyPerPercent;
   
       const maximumAlignment =
         telemetry.limits
@@ -111,7 +129,8 @@ import {
             .baseScore -
             timePenalty -
             fuelPenalty -
-            impactPenalty +
+            impactPenalty -
+            damagePenalty +
             alignmentBonus +
             velocityBonus,
           0,
@@ -140,6 +159,26 @@ import {
       return "D";
     }
   
+    function getFailureReason(
+      telemetry
+    ) {
+      if (
+        telemetry.crashReason ===
+        "hull-destroyed"
+      ) {
+        return "Hull integrity lost";
+      }
+  
+      if (
+        telemetry.crashReason ===
+        "catastrophic-impact"
+      ) {
+        return "Catastrophic station impact";
+      }
+  
+      return "Unsafe station impact";
+    }
+  
     function finish(
       outcome,
       telemetry
@@ -159,9 +198,12 @@ import {
   
         reason: succeeded
           ? "Docking confirmed"
-          : "Unsafe station impact",
+          : getFailureReason(
+              telemetry
+            ),
   
         score,
+  
         grade: succeeded
           ? getGrade(score)
           : "F",
@@ -172,6 +214,19 @@ import {
           getPropellantUsed(
             telemetry
           ),
+  
+        hullIntegrity:
+          telemetry.damage
+            ?.integrity ?? 100,
+  
+        totalDamage:
+          getHullDamage(
+            telemetry
+          ),
+  
+        impactCount:
+          telemetry.damage
+            ?.impactCount ?? 0,
   
         maximumImpact,
   
@@ -242,7 +297,8 @@ import {
   
       if (
         telemetry.state ===
-        "crashed"
+        "crashed" ||
+        telemetry.damage?.destroyed
       ) {
         finish(
           MissionStatus.FAILED,
@@ -293,6 +349,11 @@ import {
                 latestTelemetry
               )
             : 0,
+  
+        hullIntegrity:
+          latestTelemetry
+            ?.damage?.integrity ??
+          100,
   
         maximumImpact,
         result,

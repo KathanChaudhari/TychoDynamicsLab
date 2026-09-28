@@ -22,6 +22,10 @@ import {
   createPropellantSystem,
 } from "./PropellantSystem.js";
 
+import {
+  createDamageSystem,
+} from "./DamageSystem.js";
+
 export function createSpacecraft(
   scene,
   world,
@@ -51,6 +55,9 @@ export function createSpacecraft(
 
   const propellantSystem =
     createPropellantSystem();
+
+    const damageSystem =
+  createDamageSystem();
 
   const colliderDebug =
     createSpacecraftColliderDebug(
@@ -104,6 +111,19 @@ export function createSpacecraft(
       linearVelocity
     );
   }
+  function registerImpact(force) {
+    return damageSystem
+      .registerImpact(force);
+  }
+  
+  function updateDamage(deltaTime) {
+    damageSystem.update(deltaTime);
+  }
+  
+  function getDamageTelemetry() {
+    return damageSystem
+      .getTelemetry();
+  }
 
   function setColliderDebugVisible(
     visible
@@ -123,6 +143,7 @@ export function createSpacecraft(
     thrusterVisuals.reset();
 
     physics.reset();
+    damageSystem.reset();
     model.hideVelocityArrow();
   }
 
@@ -207,7 +228,11 @@ export function createSpacecraft(
     updateVelocityArrow,
     updateThrusterVisuals,
 
+    registerImpact,
+updateDamage,
+getDamageTelemetry,
     reset,
+    
     dispose,
   };
 }

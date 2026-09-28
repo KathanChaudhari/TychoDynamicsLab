@@ -114,6 +114,13 @@ function ResultMetric({
                 2
               )}°`}
             />
+
+<ResultMetric
+  label="HULL INTEGRITY"
+  value={`${result.hullIntegrity.toFixed(
+    1
+  )}%`}
+/>
           </div>
   
           <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-5">

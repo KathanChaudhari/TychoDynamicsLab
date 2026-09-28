@@ -15,6 +15,38 @@ const STATE_STYLES = {
     "border-red-500/60 bg-red-500/10 text-red-300",
 };
 
+const DAMAGE_STYLES = {
+  nominal: {
+    bar: "bg-emerald-400",
+    text: "text-emerald-400",
+    label: "NOMINAL",
+  },
+
+  degraded: {
+    bar: "bg-sky-400",
+    text: "text-sky-400",
+    label: "DEGRADED",
+  },
+
+  damaged: {
+    bar: "bg-amber-400",
+    text: "text-amber-400",
+    label: "DAMAGED",
+  },
+
+  critical: {
+    bar: "bg-orange-500",
+    text: "text-orange-400",
+    label: "CRITICAL",
+  },
+
+  destroyed: {
+    bar: "bg-rose-500",
+    text: "text-rose-400",
+    label: "DESTROYED",
+  },
+};
+
 const PROPELLANT_STYLES = {
   nominal: {
     bar: "bg-emerald-400",
@@ -40,6 +72,68 @@ const PROPELLANT_STYLES = {
     label: "EMPTY",
   },
 };
+
+function DamagePanel({
+  damage,
+}) {
+  const status =
+    damage?.status ??
+    "nominal";
+
+  const style =
+    DAMAGE_STYLES[status] ??
+    DAMAGE_STYLES.nominal;
+
+  const percentage =
+    Math.max(
+      0,
+      Math.min(
+        damage?.percentage ?? 100,
+        100
+      )
+    );
+
+  return (
+    <section className="border-t border-white/10 px-5 py-4">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] tracking-[0.18em] text-slate-400">
+          HULL INTEGRITY
+        </span>
+
+        <span
+          className={`text-[10px] font-semibold tracking-wider ${style.text}`}
+        >
+          {style.label}
+        </span>
+      </div>
+
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div
+          className={`h-full rounded-full transition-[width] duration-150 ${style.bar}`}
+          style={{
+            width: `${percentage}%`,
+          }}
+        />
+      </div>
+
+      <div className="mt-3 flex items-center justify-between font-mono text-xs">
+        <span className="text-slate-200">
+          {percentage.toFixed(1)}%
+        </span>
+
+        <span className="text-slate-500">
+          {damage?.impactCount ?? 0} impacts
+        </span>
+
+        <span className="text-slate-500">
+          -{(damage?.lastDamage ?? 0).toFixed(
+            1
+          )}
+        </span>
+      </div>
+    </section>
+  );
+}
 
 function formatNumber(
   value,
@@ -358,6 +452,11 @@ export default function DockingHUD({
           good={impactGood}
         />
       </div>
+
+      <DamagePanel
+  damage={telemetry.damage}
+/>
+
 
       <PropellantPanel
         propellant={
