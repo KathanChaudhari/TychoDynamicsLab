@@ -17,6 +17,8 @@ export function startSimulationLoop({
   dockingSystem,
   missionSystem,
   probeSystem,
+  cameraController,
+  interactions,
   pressedKeys,
   onTelemetry,
 }) {
@@ -109,6 +111,21 @@ export function startSimulationLoop({
       );
 
     probeSystem.syncVisuals();
+
+    /*
+     * Update selection helpers after the
+     * spacecraft visual transform is synced.
+     */
+    interactions.update();
+
+    /*
+     * Camera must update after syncing the
+     * spacecraft so chase/docking views use
+     * the newest transform.
+     */
+    cameraController.update(
+      frameTime
+    );
 
     if (
       telemetryAccumulator >=

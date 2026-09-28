@@ -11,7 +11,7 @@ const controls = [
   ["C", "Toggle colliders"],
   ["U", "Undock"],
   ["T", "Reset simulation"],
-  ["1 / 2 / 3", "Camera presets"],
+  ["1 / 2 / 3 / 4", "Camera modes"],
 ];
 
 export default function ControlGuide() {

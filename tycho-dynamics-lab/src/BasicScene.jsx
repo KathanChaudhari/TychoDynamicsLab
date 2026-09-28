@@ -49,6 +49,10 @@ import {
   createMissionSystem,
 } from "./scene/mission/MissionSystem.js";
 
+import {
+  createCameraController,
+} from "./scene/camera/CameraController.js";
+
 let rapierInitializationPromise = null;
 
 function initializeRapier() {
@@ -220,6 +224,14 @@ export default function BasicScene({
           RAPIER
         );
 
+        const cameraController =
+  createCameraController({
+    camera,
+    controls,
+    spacecraft,
+    station,
+  });
+
       // ========================================
       // Gateway GLB model
       // ========================================
@@ -380,6 +392,7 @@ export default function BasicScene({
           controls,
           spacecraft,
           station,
+          cameraController,
 
           onStartMission() {
             if (!missionReady) {
@@ -398,22 +411,21 @@ export default function BasicScene({
           },
 
           onReset() {
-            /*
-             * Reset physics first because
-             * spacecraft.reset() also refills
-             * propellant.
-             */
             dockingSystem.reset();
             spacecraft.reset();
-
+          
             const propellant =
               spacecraft
                 .getPropellantTelemetry();
-
+          
             missionSystem.reset(
               propellant.remaining
             );
-
+          
+            cameraController.setMode(
+              "overview"
+            );
+          
             publishTelemetry();
           },
 
@@ -466,6 +478,8 @@ export default function BasicScene({
           dockingSystem,
           missionSystem,
           probeSystem,
+          cameraController,
+    interactions,
 
           pressedKeys:
             interactions.pressedKeys,
@@ -561,6 +575,7 @@ export default function BasicScene({
         world.free();
 
         environment.dispose();
+        cameraController.dispose();
       };
     }
 

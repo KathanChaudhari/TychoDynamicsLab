@@ -1,37 +1,42 @@
 import * as THREE from "three";
 
-const CONTROLLED_KEYS = new Set([
-  "KeyW",
-  "KeyS",
-  "KeyA",
-  "KeyD",
-  "KeyR",
-  "KeyF",
-  "KeyQ",
-  "KeyE",
+import {
+  CameraMode,
+} from "./camera/CameraController.js";
 
-  "ArrowUp",
-  "ArrowDown",
-  "ArrowLeft",
-  "ArrowRight",
+const CONTROLLED_KEYS =
+  new Set([
+    "KeyW",
+    "KeyS",
+    "KeyA",
+    "KeyD",
+    "KeyR",
+    "KeyF",
+    "KeyQ",
+    "KeyE",
 
-  "Space",
-  "KeyX",
-  "KeyT",
-  "KeyU",
-  "KeyP",
-  "KeyV",
-  "KeyC",
-  "Enter",
-]);
+    "ArrowUp",
+    "ArrowDown",
+    "ArrowLeft",
+    "ArrowRight",
+
+    "Space",
+    "KeyX",
+    "KeyT",
+    "KeyU",
+    "KeyP",
+    "KeyV",
+    "KeyC",
+    "Enter",
+  ]);
 
 export function createInteractionController({
   scene,
   camera,
   renderer,
-  controls,
   spacecraft,
   station,
+  cameraController,
   onStartMission,
   onReset,
   onUndock,
@@ -47,9 +52,6 @@ export function createInteractionController({
   const pointer =
     new THREE.Vector2();
 
-  const spacecraftCameraOffset =
-    new THREE.Vector3(4, 2, 5);
-
   let selectedObject = null;
 
   const selectionBox =
@@ -63,59 +65,84 @@ export function createInteractionController({
   scene.add(selectionBox);
 
   function setCameraView(view) {
-    if (view === "overview") {
-      camera.position.set(
-        7,
-        5,
-        10
-      );
+    const viewMap = {
+      overview:
+        CameraMode.OVERVIEW,
 
-      controls.target.set(
-        0,
-        0,
-        -3
-      );
+      spacecraft:
+        CameraMode.CHASE,
+
+      chase:
+        CameraMode.CHASE,
+
+      docking:
+        CameraMode.DOCKING,
+
+      cinematic:
+        CameraMode.CINEMATIC,
+    };
+
+    const mode =
+      viewMap[view] ?? view;
+
+    cameraController.setMode(
+      mode
+    );
+  }
+
+  function handleCameraKey(
+    event
+  ) {
+    if (
+      event.code === "Digit1"
+    ) {
+      setCameraView("overview");
+      return true;
     }
 
-    if (view === "spacecraft") {
-      camera.position
-        .copy(
-          spacecraft.group.position
-        )
-        .add(
-          spacecraftCameraOffset
-        );
-
-      controls.target.copy(
-        spacecraft.group.position
-      );
+    if (
+      event.code === "Digit2"
+    ) {
+      setCameraView("chase");
+      return true;
     }
 
-    if (view === "docking") {
-      camera.position.set(
-        0,
-        1,
-        3
-      );
-
-      controls.target.copy(
-        station.group.position
-      );
+    if (
+      event.code === "Digit3"
+    ) {
+      setCameraView("docking");
+      return true;
     }
 
-    controls.update();
+    if (
+      event.code === "Digit4"
+    ) {
+      setCameraView("cinematic");
+      return true;
+    }
+
+    return false;
   }
 
   function handleOneTimeCommand(
     event
   ) {
+    if (event.code === "Enter") {
+      onStartMission?.();
+      return true;
+    }
+
     if (event.code === "Space") {
-      spacecraft.stopLinearMotion();
+      spacecraft
+        .stopLinearMotion();
+
       return true;
     }
 
     if (event.code === "KeyX") {
-      spacecraft.stopAngularMotion();
+      spacecraft
+        .stopAngularMotion();
+
       return true;
     }
 
@@ -141,50 +168,33 @@ export function createInteractionController({
 
     if (event.code === "KeyC") {
       const visible =
-        spacecraft.toggleColliderDebug();
-    
-      station.setColliderDebugVisible?.(
-        visible
-      );
-    
+        spacecraft
+          .toggleColliderDebug();
+
+      station
+        .setColliderDebugVisible?.(
+          visible
+        );
+
       spacecraft
         .setDockingPortDebugVisible?.(
           visible
         );
-    
+
       station
         .setDockingPortDebugVisible?.(
           visible
         );
 
-        if (event.code === "Enter") {
-  onStartMission?.();
-  return true;
-}
-    
       return true;
     }
 
-    if (event.code === "Enter") {
-      onStartMission?.();
-      return true;
-    }
     return false;
   }
 
   function handleKeyDown(event) {
-    if (event.code === "Digit1") {
-      setCameraView("overview");
-      return;
-    }
-
-    if (event.code === "Digit2") {
-      setCameraView("spacecraft");
-      return;
-    }
-
-    if (event.code === "Digit3") {
-      setCameraView("docking");
+    if (handleCameraKey(event)) {
+      event.preventDefault();
       return;
     }
 
@@ -203,7 +213,9 @@ export function createInteractionController({
     }
 
     const handledCommand =
-      handleOneTimeCommand(event);
+      handleOneTimeCommand(
+        event
+      );
 
     if (handledCommand) {
       pressedKeys.delete(
@@ -213,10 +225,6 @@ export function createInteractionController({
       return;
     }
 
-    /*
-     * Only continuous flight controls remain
-     * in pressedKeys.
-     */
     pressedKeys.add(
       event.code
     );
@@ -312,7 +320,8 @@ export function createInteractionController({
 
     console.log(
       "Selected:",
-      selectedObject.userData.label
+      selectedObject
+        .userData.label
     );
   }
 
