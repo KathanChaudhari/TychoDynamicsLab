@@ -86,9 +86,10 @@ export function createDockingSystem({
   function isSafeToCapture() {
     const { checks } =
       telemetry.metrics;
-
+  
     return (
-      checks.speed &&
+      checks.closingSpeed &&
+      checks.lateralSpeed &&
       checks.angularSpeed &&
       checks.alignment &&
       checks.lateralOffset &&
@@ -99,15 +100,26 @@ export function createDockingSystem({
   function isReadyForHardLock() {
     const metrics =
       telemetry.metrics;
-
+  
     return (
       metrics.distance <=
-        DOCKING_RULES.hardLockDistance &&
-      metrics.speed <=
-        DOCKING_RULES.hardLockSpeed &&
+        DOCKING_RULES
+          .hardLockDistance &&
+  
+      Math.abs(
+        metrics.closingSpeed
+      ) <=
+        DOCKING_RULES
+          .hardLockClosingSpeed &&
+  
+      metrics.lateralSpeed <=
+        DOCKING_RULES
+          .hardLockLateralSpeed &&
+  
       metrics.angularSpeed <=
         DOCKING_RULES
           .hardLockAngularSpeed &&
+  
       metrics.alignmentAngle <=
         THREE.MathUtils.radToDeg(
           DOCKING_RULES
@@ -248,57 +260,89 @@ export function createDockingSystem({
   }
 
   function getTelemetry() {
-   
     telemetry.updateMetrics();
-
+  
     return {
       state,
       insideSensor,
-
+  
       speed:
         telemetry.metrics.speed,
-
+  
+      closingSpeed:
+        telemetry.metrics
+          .closingSpeed,
+  
+      lateralSpeed:
+        telemetry.metrics
+          .lateralSpeed,
+  
       angularSpeed:
-        telemetry.metrics.angularSpeed,
-
+        telemetry.metrics
+          .angularSpeed,
+  
       alignmentAngle:
-        telemetry.metrics.alignmentAngle,
-
+        telemetry.metrics
+          .alignmentAngle,
+  
+      horizontalOffset:
+        telemetry.metrics
+          .horizontalOffset,
+  
+      verticalOffset:
+        telemetry.metrics
+          .verticalOffset,
+  
       lateralOffset:
-        telemetry.metrics.lateralOffset,
-
+        telemetry.metrics
+          .lateralOffset,
+  
+      axialDistance:
+        telemetry.metrics
+          .axialDistance,
+  
       distance:
         telemetry.metrics.distance,
-
+  
+      timeToContact:
+        telemetry.metrics
+          .timeToContact,
+  
       impactForce:
-        eventHandler.getLastImpactForce(),
-
+        eventHandler
+          .getLastImpactForce(),
+  
       checks: {
         ...telemetry.metrics.checks,
       },
-
+  
       limits: {
-        maximumSpeed:
-          DOCKING_RULES.maximumSpeed,
-
+        maximumClosingSpeed:
+          DOCKING_RULES
+            .maximumClosingSpeed,
+  
+        maximumLateralSpeed:
+          DOCKING_RULES
+            .maximumLateralSpeed,
+  
         maximumAngularSpeed:
           DOCKING_RULES
             .maximumAngularSpeed,
-
+  
         maximumAlignmentAngle:
           THREE.MathUtils.radToDeg(
             DOCKING_RULES
               .maximumAlignmentAngle
           ),
-
+  
         maximumLateralOffset:
           DOCKING_RULES
             .maximumLateralOffset,
-
+  
         maximumCaptureDistance:
           DOCKING_RULES
             .maximumCaptureDistance,
-
+  
         crashForce:
           DOCKING_RULES.crashForce,
       },

@@ -88,7 +88,7 @@ export function createProbe({
     },
     true
   );
-
+ 
   function step(deltaTime) {
     age += deltaTime;
 
@@ -132,7 +132,10 @@ export function createProbe({
       rigidBody
     );
   }
-
+  console.log(
+    "Calculated spacecraft mass:",
+    rigidBody.mass()
+  );
   return {
     mesh,
     rigidBody,

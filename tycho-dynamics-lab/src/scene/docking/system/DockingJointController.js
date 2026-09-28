@@ -1,65 +1,137 @@
-import {
-    IDENTITY_ROTATION,
-    SPACECRAFT_DOCKING_POINT,
-  } from "./DockingConfig";
-  
-  export function createDockingJointController({
-    world,
-    RAPIER,
-    spacecraft,
-    station,
-  }) {
-    let dockingJoint = null;
-  
-    function create() {
-      if (dockingJoint) {
-        return;
-      }
-  
-      spacecraft.stopLinearMotion();
-      spacecraft.stopAngularMotion();
-  
-      const jointData =
-        RAPIER.JointData.fixed(
-          {
-            x: 0,
-            y: 0,
-            z: 0,
-          },
-          IDENTITY_ROTATION,
-          SPACECRAFT_DOCKING_POINT,
-          IDENTITY_ROTATION
-        );
-  
-      dockingJoint =
-        world.createImpulseJoint(
-          jointData,
-          station.rigidBody,
-          spacecraft.rigidBody,
-          true
-        );
-    }
-  
-    function remove() {
-      if (!dockingJoint) {
-        return;
-      }
-  
-      world.removeImpulseJoint(
-        dockingJoint,
-        true
-      );
-  
-      dockingJoint = null;
-    }
-  
-    function exists() {
-      return dockingJoint !== null;
-    }
-  
+export function createDockingJointController({
+  world,
+  RAPIER,
+  spacecraft,
+  station,
+}) {
+  let dockingJoint = null;
+
+  function getAnchorPosition(
+    dockingPort
+  ) {
     return {
-      create,
-      remove,
-      exists,
+      x: dockingPort.position.x,
+      y: dockingPort.position.y,
+      z: dockingPort.position.z,
     };
   }
+
+  function getAnchorRotation(
+    dockingPort
+  ) {
+    return {
+      x: dockingPort.quaternion.x,
+      y: dockingPort.quaternion.y,
+      z: dockingPort.quaternion.z,
+      w: dockingPort.quaternion.w,
+    };
+  }
+
+  function create() {
+    if (dockingJoint) {
+      return;
+    }
+
+    if (
+      !spacecraft.dockingPort ||
+      !station.dockingPort
+    ) {
+      console.error(
+        "Cannot create docking joint: docking-port anchors are missing."
+      );
+
+      return;
+    }
+
+    /*
+     * Joint anchors must be expressed in the
+     * local coordinate system of each rigid body.
+     *
+     * Both docking-port objects are direct children
+     * of their corresponding physics groups, so
+     * their local positions can be used directly.
+     */
+    const stationAnchor =
+      getAnchorPosition(
+        station.dockingPort
+      );
+
+    const spacecraftAnchor =
+      getAnchorPosition(
+        spacecraft.dockingPort
+      );
+
+    const stationFrameRotation =
+      getAnchorRotation(
+        station.dockingPort
+      );
+
+    const spacecraftFrameRotation =
+      getAnchorRotation(
+        spacecraft.dockingPort
+      );
+
+    spacecraft.stopLinearMotion();
+    spacecraft.stopAngularMotion();
+
+    const jointData =
+      RAPIER.JointData.fixed(
+        /*
+         * Anchor and frame on the first body:
+         * Gateway/station.
+         */
+        stationAnchor,
+        stationFrameRotation,
+
+        /*
+         * Anchor and frame on the second body:
+         * Orion.
+         */
+        spacecraftAnchor,
+        spacecraftFrameRotation
+      );
+
+    dockingJoint =
+      world.createImpulseJoint(
+        jointData,
+        station.rigidBody,
+        spacecraft.rigidBody,
+        true
+      );
+
+    console.log(
+      "Docking joint created",
+      {
+        stationAnchor,
+        spacecraftAnchor,
+      }
+    );
+  }
+
+  function remove() {
+    if (!dockingJoint) {
+      return;
+    }
+
+    world.removeImpulseJoint(
+      dockingJoint,
+      true
+    );
+
+    dockingJoint = null;
+
+    console.log(
+      "Docking joint removed"
+    );
+  }
+
+  function exists() {
+    return dockingJoint !== null;
+  }
+
+  return {
+    create,
+    remove,
+    exists,
+  };
+}

@@ -11,22 +11,35 @@ const INITIAL_TELEMETRY = {
   insideSensor: false,
 
   speed: 0,
+  closingSpeed: 0,
+  lateralSpeed: 0,
   angularSpeed: 0,
+
   alignmentAngle: 0,
+
+  horizontalOffset: 0,
+  verticalOffset: 0,
   lateralOffset: 0,
+
+  axialDistance: 7,
   distance: 7,
+
+  timeToContact: null,
   impactForce: 0,
 
   checks: {
     speed: true,
+    closingSpeed: true,
+    lateralSpeed: true,
     angularSpeed: true,
     alignment: true,
     lateralOffset: true,
-    distance: true,
+    distance: false,
   },
 
   limits: {
-    maximumSpeed: 0.25,
+    maximumClosingSpeed: 0.25,
+    maximumLateralSpeed: 0.12,
     maximumAngularSpeed: 0.15,
     maximumAlignmentAngle: 7,
     maximumLateralOffset: 0.35,

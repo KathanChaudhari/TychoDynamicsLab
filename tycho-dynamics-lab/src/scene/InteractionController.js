@@ -1,39 +1,43 @@
 import * as THREE from "three";
 
 const CONTROLLED_KEYS = new Set([
-    "KeyW",
-    "KeyS",
-    "KeyA",
-    "KeyD",
-    "KeyR",
-    "KeyF",
-    "KeyQ",
-    "KeyE",
-    "ArrowUp",
-    "ArrowDown",
-    "ArrowLeft",
-    "ArrowRight",
-    "Space",
-    "KeyX",
-    "KeyT",
-    "KeyU",
-    "KeyP",
-    "KeyV",
-  ]);
+  "KeyW",
+  "KeyS",
+  "KeyA",
+  "KeyD",
+  "KeyR",
+  "KeyF",
+  "KeyQ",
+  "KeyE",
 
-  export function createInteractionController({
-    scene,
-    camera,
-    renderer,
-    controls,
-    spacecraft,
-    station,
-    onReset,
-    onUndock,
-    onLaunchProbe,
-    onToggleTrajectory,
-  }) {
-  const pressedKeys = new Set();
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+
+  "Space",
+  "KeyX",
+  "KeyT",
+  "KeyU",
+  "KeyP",
+  "KeyV",
+  "KeyC",
+]);
+
+export function createInteractionController({
+  scene,
+  camera,
+  renderer,
+  controls,
+  spacecraft,
+  station,
+  onReset,
+  onUndock,
+  onLaunchProbe,
+  onToggleTrajectory,
+}) {
+  const pressedKeys =
+    new Set();
 
   const raycaster =
     new THREE.Raycaster();
@@ -56,17 +60,29 @@ const CONTROLLED_KEYS = new Set([
 
   scene.add(selectionBox);
 
-  
   function setCameraView(view) {
     if (view === "overview") {
-      camera.position.set(7, 5, 10);
-      controls.target.set(0, 0, -3);
+      camera.position.set(
+        7,
+        5,
+        10
+      );
+
+      controls.target.set(
+        0,
+        0,
+        -3
+      );
     }
 
     if (view === "spacecraft") {
       camera.position
-        .copy(spacecraft.group.position)
-        .add(spacecraftCameraOffset);
+        .copy(
+          spacecraft.group.position
+        )
+        .add(
+          spacecraftCameraOffset
+        );
 
       controls.target.copy(
         spacecraft.group.position
@@ -74,7 +90,11 @@ const CONTROLLED_KEYS = new Set([
     }
 
     if (view === "docking") {
-      camera.position.set(0, 1, 3);
+      camera.position.set(
+        0,
+        1,
+        3
+      );
 
       controls.target.copy(
         station.group.position
@@ -84,6 +104,62 @@ const CONTROLLED_KEYS = new Set([
     controls.update();
   }
 
+  function handleOneTimeCommand(
+    event
+  ) {
+    if (event.code === "Space") {
+      spacecraft.stopLinearMotion();
+      return true;
+    }
+
+    if (event.code === "KeyX") {
+      spacecraft.stopAngularMotion();
+      return true;
+    }
+
+    if (event.code === "KeyT") {
+      onReset?.();
+      return true;
+    }
+
+    if (event.code === "KeyU") {
+      onUndock?.();
+      return true;
+    }
+
+    if (event.code === "KeyP") {
+      onLaunchProbe?.();
+      return true;
+    }
+
+    if (event.code === "KeyV") {
+      onToggleTrajectory?.();
+      return true;
+    }
+
+    if (event.code === "KeyC") {
+      const visible =
+        spacecraft.toggleColliderDebug();
+    
+      station.setColliderDebugVisible?.(
+        visible
+      );
+    
+      spacecraft
+        .setDockingPortDebugVisible?.(
+          visible
+        );
+    
+      station
+        .setDockingPortDebugVisible?.(
+          visible
+        );
+    
+      return true;
+    }
+
+    return false;
+  }
 
   function handleKeyDown(event) {
     if (event.code === "Digit1") {
@@ -102,69 +178,48 @@ const CONTROLLED_KEYS = new Set([
     }
 
     if (
-      !CONTROLLED_KEYS.has(event.code)
+      !CONTROLLED_KEYS.has(
+        event.code
+      )
     ) {
       return;
     }
 
     event.preventDefault();
 
-  
-    pressedKeys.add(event.code);
-
     if (event.repeat) {
       return;
     }
 
-    if (event.code === "Space") {
-      spacecraft.stopLinearMotion();
-      pressedKeys.delete(event.code);
+    const handledCommand =
+      handleOneTimeCommand(event);
+
+    if (handledCommand) {
+      pressedKeys.delete(
+        event.code
+      );
 
       return;
     }
 
-    if (event.code === "KeyX") {
-      spacecraft.stopAngularMotion();
-      pressedKeys.delete(event.code);
-
-      return;
-    }
-
-    if (event.code === "KeyT") {
-   
-      onReset?.();
-      pressedKeys.delete(event.code);
-
-      return;
-    }
-
-    if (event.code === "KeyU") {
-      onUndock?.();
-      pressedKeys.delete(event.code);
-
-
-    }
-
-    if (event.code === "KeyP") {
-        onLaunchProbe?.();
-      
-        pressedKeys.delete(event.code);
-        return;
-      }
-      
-      if (event.code === "KeyV") {
-        onToggleTrajectory?.();
-      
-        pressedKeys.delete(event.code);
-        return;
-      }
+    /*
+     * Only continuous flight controls remain
+     * in pressedKeys.
+     */
+    pressedKeys.add(
+      event.code
+    );
   }
 
   function handleKeyUp(event) {
-    pressedKeys.delete(event.code);
+    pressedKeys.delete(
+      event.code
+    );
   }
 
-  function findSelectableParent(object) {
+  function findSelectableParent(
+    object
+  ) {
     let currentObject = object;
 
     while (
@@ -172,7 +227,8 @@ const CONTROLLED_KEYS = new Set([
       currentObject !== scene
     ) {
       if (
-        currentObject.userData.selectable
+        currentObject.userData
+          .selectable
       ) {
         return currentObject;
       }
@@ -224,7 +280,6 @@ const CONTROLLED_KEYS = new Set([
     ) {
       selectedObject = null;
       selectionBox.visible = false;
-
       return;
     }
 
@@ -235,7 +290,6 @@ const CONTROLLED_KEYS = new Set([
 
     if (!selectedObject) {
       selectionBox.visible = false;
-
       return;
     }
 
@@ -251,7 +305,6 @@ const CONTROLLED_KEYS = new Set([
     );
   }
 
-  
   function update() {
     if (selectedObject) {
       selectionBox.setFromObject(
@@ -259,7 +312,6 @@ const CONTROLLED_KEYS = new Set([
       );
     }
   }
-
 
   function dispose() {
     pressedKeys.clear();
@@ -274,10 +326,11 @@ const CONTROLLED_KEYS = new Set([
       handleKeyUp
     );
 
-    renderer.domElement.removeEventListener(
-      "pointerdown",
-      handlePointerDown
-    );
+    renderer.domElement
+      .removeEventListener(
+        "pointerdown",
+        handlePointerDown
+      );
 
     scene.remove(selectionBox);
 
@@ -295,10 +348,11 @@ const CONTROLLED_KEYS = new Set([
     handleKeyUp
   );
 
-  renderer.domElement.addEventListener(
-    "pointerdown",
-    handlePointerDown
-  );
+  renderer.domElement
+    .addEventListener(
+      "pointerdown",
+      handlePointerDown
+    );
 
   return {
     pressedKeys,

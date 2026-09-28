@@ -1,176 +1,268 @@
-const STATUS_STYLES = {
-    approach: {
-      label: "APPROACH",
-      color: "text-slate-200",
-      background: "bg-slate-500/20",
-      border: "border-slate-400/40",
-    },
-  
-    "in-range": {
-      label: "IN RANGE",
-      color: "text-sky-300",
-      background: "bg-sky-500/20",
-      border: "border-sky-400/40",
-    },
-  
-    capturing: {
-      label: "CAPTURING",
-      color: "text-purple-300",
-      background: "bg-purple-500/20",
-      border: "border-purple-400/40",
-    },
-  
-    docked: {
-      label: "DOCKED",
-      color: "text-emerald-300",
-      background: "bg-emerald-500/20",
-      border: "border-emerald-400/40",
-    },
-  
-    crashed: {
-      label: "CRASHED",
-      color: "text-red-300",
-      background: "bg-red-500/20",
-      border: "border-red-400/40",
-    },
-  };
-  
-  function MetricRow({
-    label,
-    value,
-    unit,
-    valid,
-    showCondition = true,
-  }) {
-    return (
-      <div className="flex items-center justify-between gap-6 border-b border-white/5 py-2 last:border-none">
-        <span className="text-xs tracking-wider text-slate-400">
-          {label}
-        </span>
-  
-        <div className="flex items-center gap-3">
-          <span className="font-mono text-sm text-slate-100">
-            {value}{" "}
-            <span className="text-xs text-slate-500">
-              {unit}
-            </span>
-          </span>
-  
-          {showCondition && (
-            <span
-              className={`w-12 text-right text-[10px] font-semibold tracking-wider ${
-                valid
-                  ? "text-emerald-400"
-                  : "text-red-400"
-              }`}
-            >
-              {valid ? "GOOD" : "WARN"}
-            </span>
-          )}
-        </div>
-      </div>
-    );
+const STATE_STYLES = {
+  approach:
+    "border-slate-600 bg-slate-800/70 text-slate-200",
+
+  "in-range":
+    "border-sky-500/60 bg-sky-500/10 text-sky-300",
+
+  capturing:
+    "border-purple-500/60 bg-purple-500/10 text-purple-300",
+
+  docked:
+    "border-emerald-500/60 bg-emerald-500/10 text-emerald-300",
+
+  crashed:
+    "border-red-500/60 bg-red-500/10 text-red-300",
+};
+
+function formatNumber(
+  value,
+  digits = 2
+) {
+  if (!Number.isFinite(value)) {
+    return "—";
   }
-  
-  export default function DockingHUD({ telemetry }) {
-    if (!telemetry) {
-      return null;
-    }
-  
-    const status =
-      STATUS_STYLES[telemetry.state] ??
-      STATUS_STYLES.approach;
-  
-    return (
-      <section className="pointer-events-none absolute left-4 top-4 w-[320px] overflow-hidden rounded-xl border border-white/10 bg-slate-950/75 shadow-2xl backdrop-blur-md">
-        <header className="border-b border-white/10 px-4 py-3">
-          <p className="text-[10px] tracking-[0.3em] text-sky-400">
+
+  return value.toFixed(digits);
+}
+
+function formatSigned(
+  value,
+  digits = 2
+) {
+  if (!Number.isFinite(value)) {
+    return "—";
+  }
+
+  const prefix =
+    value > 0 ? "+" : "";
+
+  return `${prefix}${value.toFixed(
+    digits
+  )}`;
+}
+
+function MetricRow({
+  label,
+  value,
+  unit,
+  good,
+  showStatus = true,
+}) {
+  return (
+    <div className="grid grid-cols-[1fr_auto_54px] items-center gap-3 border-b border-white/5 py-2.5 last:border-b-0">
+      <span className="text-[11px] tracking-[0.08em] text-slate-400">
+        {label}
+      </span>
+
+      <span className="font-mono text-sm text-slate-100">
+        {value}
+
+        {unit && (
+          <span className="ml-2 text-xs text-slate-500">
+            {unit}
+          </span>
+        )}
+      </span>
+
+      {showStatus ? (
+        <span
+          className={
+            good
+              ? "text-right text-[10px] font-semibold tracking-wider text-emerald-400"
+              : "text-right text-[10px] font-semibold tracking-wider text-rose-400"
+          }
+        >
+          {good ? "GOOD" : "WARN"}
+        </span>
+      ) : (
+        <span />
+      )}
+    </div>
+  );
+}
+
+export default function DockingHUD({
+  telemetry,
+}) {
+  const state =
+    telemetry?.state ??
+    "approach";
+
+  const checks =
+    telemetry?.checks ?? {};
+
+  const timeToContact =
+    telemetry?.timeToContact;
+
+  const timeDisplay =
+    Number.isFinite(timeToContact)
+      ? formatNumber(
+          timeToContact,
+          1
+        )
+      : "—";
+
+  const impactGood =
+    telemetry.impactForce <
+    telemetry.limits.crashForce;
+
+  return (
+    <aside className="pointer-events-none absolute left-4 top-4 hidden max-h-[calc(100vh-2rem)] w-[390px] overflow-y-auto rounded-xl border border-white/10 bg-slate-950/75 backdrop-blur-md md:block">
+      <header className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+        <div>
+          <p className="text-[10px] tracking-[0.35em] text-sky-400">
             TYCHO DYNAMICS LAB
           </p>
-  
-          <div className="mt-2 flex items-center justify-between">
-            <h1 className="text-sm font-semibold text-slate-100">
-              Docking Computer
-            </h1>
-  
-            <span
-              className={`rounded border px-2 py-1 text-[10px] font-semibold tracking-wider ${status.color} ${status.background} ${status.border}`}
-            >
-              {status.label}
-            </span>
-          </div>
-        </header>
-  
-        <div className="px-4 py-2">
-          <MetricRow
-            label="SPEED"
-            value={telemetry.speed.toFixed(2)}
-            unit="m/s"
-            valid={telemetry.checks.speed}
-          />
-  
-          <MetricRow
-            label="ANGULAR SPEED"
-            value={telemetry.angularSpeed.toFixed(2)}
-            unit="rad/s"
-            valid={telemetry.checks.angularSpeed}
-          />
-  
-          <MetricRow
-            label="ALIGNMENT"
-            value={telemetry.alignmentAngle.toFixed(1)}
-            unit="deg"
-            valid={telemetry.checks.alignment}
-          />
-  
-          <MetricRow
-            label="LATERAL OFFSET"
-            value={telemetry.lateralOffset.toFixed(2)}
-            unit="m"
-            valid={telemetry.checks.lateralOffset}
-          />
-  
-          <MetricRow
-            label="DISTANCE"
-            value={telemetry.distance.toFixed(2)}
-            unit="m"
-            showCondition={false}
-          />
-  
-          <MetricRow
-            label="LAST IMPACT"
-            value={telemetry.impactForce.toFixed(0)}
-            unit="N"
-            valid={
-              telemetry.impactForce <
-              telemetry.limits.crashForce
-            }
-          />
-          <MetricRow
-  label="CAPTURE DISTANCE"
-  value={telemetry.distance.toFixed(2)}
-  unit="m"
-  valid={telemetry.checks.distance}
-/>
+
+          <h2 className="mt-3 text-sm font-semibold text-slate-100">
+            Relative Flight Director
+          </h2>
         </div>
-  
-        <footer className="border-t border-white/10 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span
-              className={`h-2 w-2 rounded-full ${
-                telemetry.insideSensor
-                  ? "bg-sky-400 shadow-[0_0_8px_#38bdf8]"
-                  : "bg-slate-600"
-              }`}
-            />
-  
-            <span className="text-[10px] tracking-wider text-slate-400">
-              {telemetry.insideSensor
-                ? "DOCKING SENSOR ACTIVE"
-                : "SEARCHING FOR DOCKING SIGNAL"}
-            </span>
-          </div>
-        </footer>
-      </section>
-    );
-  }
+
+        <span
+          className={`rounded-md border px-3 py-2 text-[10px] font-semibold tracking-wider ${
+            STATE_STYLES[state] ??
+            STATE_STYLES.approach
+          }`}
+        >
+          {state
+            .replace("-", " ")
+            .toUpperCase()}
+        </span>
+      </header>
+
+      <div className="px-5 py-3">
+        <MetricRow
+          label="CLOSING SPEED"
+          value={formatSigned(
+            telemetry.closingSpeed
+          )}
+          unit="m/s"
+          good={
+            checks.closingSpeed
+          }
+        />
+
+        <MetricRow
+          label="LATERAL SPEED"
+          value={formatNumber(
+            telemetry.lateralSpeed
+          )}
+          unit="m/s"
+          good={
+            checks.lateralSpeed
+          }
+        />
+
+        <MetricRow
+          label="ANGULAR SPEED"
+          value={formatNumber(
+            telemetry.angularSpeed
+          )}
+          unit="rad/s"
+          good={
+            checks.angularSpeed
+          }
+        />
+
+        <MetricRow
+          label="ALIGNMENT"
+          value={formatNumber(
+            telemetry.alignmentAngle,
+            1
+          )}
+          unit="deg"
+          good={
+            checks.alignment
+          }
+        />
+
+        <MetricRow
+          label="HORIZONTAL ERROR"
+          value={formatSigned(
+            telemetry.horizontalOffset
+          )}
+          unit="m"
+          good={
+            checks.lateralOffset
+          }
+        />
+
+        <MetricRow
+          label="VERTICAL ERROR"
+          value={formatSigned(
+            telemetry.verticalOffset
+          )}
+          unit="m"
+          good={
+            checks.lateralOffset
+          }
+        />
+
+        <MetricRow
+          label="LATERAL OFFSET"
+          value={formatNumber(
+            telemetry.lateralOffset
+          )}
+          unit="m"
+          good={
+            checks.lateralOffset
+          }
+        />
+
+        <MetricRow
+          label="AXIAL DISTANCE"
+          value={formatNumber(
+            telemetry.axialDistance
+          )}
+          unit="m"
+          good={
+            checks.distance
+          }
+        />
+
+        <MetricRow
+          label="TIME TO CONTACT"
+          value={timeDisplay}
+          unit={
+            Number.isFinite(
+              timeToContact
+            )
+              ? "s"
+              : ""
+          }
+          showStatus={false}
+        />
+
+        <MetricRow
+          label="LAST IMPACT"
+          value={formatNumber(
+            telemetry.impactForce,
+            0
+          )}
+          unit="N"
+          good={impactGood}
+        />
+      </div>
+
+      <footer className="border-t border-white/10 px-5 py-4">
+        <div className="flex items-center gap-3">
+          <span
+            className={`h-2 w-2 rounded-full ${
+              telemetry.insideSensor
+                ? "bg-sky-400 shadow-[0_0_10px_#38bdf8]"
+                : "bg-slate-600"
+            }`}
+          />
+
+          <span className="text-[10px] tracking-[0.12em] text-slate-400">
+            {telemetry.insideSensor
+              ? "DOCKING SIGNAL ACQUIRED"
+              : "SEARCHING FOR DOCKING SIGNAL"}
+          </span>
+        </div>
+      </footer>
+    </aside>
+  );
+}

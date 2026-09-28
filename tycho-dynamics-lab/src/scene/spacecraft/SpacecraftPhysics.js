@@ -1,4 +1,7 @@
-const SPACECRAFT_MASS = 1000;
+import {
+  SPACECRAFT_COLLIDERS,
+  SPACECRAFT_MASS,
+} from "./SpacecraftColliderConfig.js";
 
 export function createSpacecraftPhysics({
   world,
@@ -17,13 +20,38 @@ export function createSpacecraftPhysics({
       rigidBodyDescription
     );
 
-  const colliderDescription =
-    RAPIER.ColliderDesc.cuboid(
-      0.8,
-      0.4,
-      1.5
-    )
-      .setMass(SPACECRAFT_MASS)
+  function createRotation(
+    rotationX
+  ) {
+    const halfAngle =
+      rotationX / 2;
+
+    return {
+      x: Math.sin(halfAngle),
+      y: 0,
+      z: 0,
+      w: Math.cos(halfAngle),
+    };
+  }
+
+  function configureCollider(
+    description,
+    configuration
+  ) {
+    return description
+      .setTranslation(
+        configuration.position.x,
+        configuration.position.y,
+        configuration.position.z
+      )
+      .setRotation(
+        createRotation(
+          configuration.rotationX
+        )
+      )
+      .setMass(
+        configuration.mass
+      )
       .setFriction(0.4)
       .setRestitution(0.1)
       .setActiveEvents(
@@ -35,12 +63,82 @@ export function createSpacecraftPhysics({
       .setContactForceEventThreshold(
         100
       );
+  }
 
-  const collider =
-    world.createCollider(
-      colliderDescription,
+  function createCylinderCollider(
+    configuration
+  ) {
+    const description =
+      RAPIER.ColliderDesc.cylinder(
+        configuration.halfHeight,
+        configuration.radius
+      );
+
+    configureCollider(
+      description,
+      configuration
+    );
+
+    return world.createCollider(
+      description,
       rigidBody
     );
+  }
+
+  function createConeCollider(
+    configuration
+  ) {
+    const description =
+      RAPIER.ColliderDesc.cone(
+        configuration.halfHeight,
+        configuration.radius
+      );
+
+    configureCollider(
+      description,
+      configuration
+    );
+
+    return world.createCollider(
+      description,
+      rigidBody
+    );
+  }
+
+  const serviceModuleCollider =
+    createCylinderCollider(
+      SPACECRAFT_COLLIDERS
+        .serviceModule
+    );
+
+  const crewCapsuleCollider =
+    createConeCollider(
+      SPACECRAFT_COLLIDERS
+        .crewCapsule
+    );
+
+  const dockingMechanismCollider =
+    createCylinderCollider(
+      SPACECRAFT_COLLIDERS
+        .dockingMechanism
+    );
+
+  const colliders = [
+    serviceModuleCollider,
+    crewCapsuleCollider,
+    dockingMechanismCollider,
+  ];
+
+  const colliderHandles = new Set(
+    colliders.map(
+      (collider) =>
+        collider.handle
+    )
+  );
+
+  function ownsCollider(handle) {
+    return colliderHandles.has(handle);
+  }
 
   function syncModel() {
     const position =
@@ -106,10 +204,35 @@ export function createSpacecraftPhysics({
     syncModel();
   }
 
+  console.log(
+    "Configured spacecraft mass:",
+    SPACECRAFT_MASS
+  );
+
+  console.log(
+    "Calculated Rapier mass:",
+    rigidBody.mass()
+  );
+
   return {
     mass: SPACECRAFT_MASS,
+
     rigidBody,
-    collider,
+
+    /*
+     * Kept for compatibility with code that
+     * still expects spacecraft.collider.
+     */
+    collider:
+      dockingMechanismCollider,
+
+    colliders,
+    ownsCollider,
+
+    serviceModuleCollider,
+    crewCapsuleCollider,
+    dockingMechanismCollider,
+
     syncModel,
     stopLinearMotion,
     stopAngularMotion,

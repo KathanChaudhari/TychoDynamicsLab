@@ -1,57 +1,116 @@
 import * as THREE from "three";
 
-const STATION_Z = -7;
+import {
+  createDockingPortAnchor,
+} from "./DockingPortAnchor.js";
 
+import {
+  createGatewayPhysics,
+} from "./GatewayPhysics.js";
 
-const SENSOR_POSITION_Z = 1.25;
+import {
+  createGatewayColliderDebug,
+} from "./GatewayColliderDebug.js";
+
+import {
+  GATEWAY_STATION_Z,
+} from "./GatewayColliderConfig.js";
 
 const STATUS_STYLES = {
-    approach: {
-      color: 0xf8fafc,
-      emissive: 0x000000,
-      intensity: 0,
-    },
-  
-    "in-range": {
-      color: 0x38bdf8,
-      emissive: 0x075985,
-      intensity: 2,
-    },
-  
-    capturing: {
-      color: 0xc084fc,
-      emissive: 0x7e22ce,
-      intensity: 3,
-    },
-  
-    docked: {
-      color: 0x4ade80,
-      emissive: 0x166534,
-      intensity: 3,
-    },
-  
-    crashed: {
-      color: 0xf87171,
-      emissive: 0x991b1b,
-      intensity: 4,
-    },
-  };
+  approach: {
+    color: 0xf8fafc,
+    emissive: 0x000000,
+    intensity: 0,
+    lightColor: 0x38bdf8,
+  },
+
+  "in-range": {
+    color: 0x38bdf8,
+    emissive: 0x075985,
+    intensity: 2,
+    lightColor: 0x38bdf8,
+  },
+
+  capturing: {
+    color: 0xc084fc,
+    emissive: 0x7e22ce,
+    intensity: 3,
+    lightColor: 0xc084fc,
+  },
+
+  docked: {
+    color: 0x4ade80,
+    emissive: 0x166534,
+    intensity: 3,
+    lightColor: 0x4ade80,
+  },
+
+  crashed: {
+    color: 0xf87171,
+    emissive: 0x991b1b,
+    intensity: 4,
+    lightColor: 0xef4444,
+  },
+};
 
 export function createDockingStation(
   scene,
   world,
   RAPIER
 ) {
+  const group =
+    new THREE.Group();
 
-  const group = new THREE.Group();
+  group.name =
+    "DockingStationRoot";
 
-  group.position.z = STATION_Z;
+  group.position.z =
+    GATEWAY_STATION_Z;
 
   group.userData.selectable = true;
+
   group.userData.label =
-    "Docking station";
+    "Gateway docking station";
 
   scene.add(group);
+
+  const dockingPort =
+    createDockingPortAnchor({
+      parent: group,
+
+      name:
+        "GatewayDockingPort",
+
+      position:
+        new THREE.Vector3(
+          0,
+          0,
+          0
+        ),
+
+      direction:
+        new THREE.Vector3(
+          0,
+          0,
+          1
+        ),
+
+      color: 0xff00ff,
+    });
+
+  /*
+   * Temporary docking guide.
+   *
+   * This remains visual only. It no longer
+   * creates the station's physics colliders.
+   */
+  const guideGroup =
+    new THREE.Group();
+
+  guideGroup.name =
+    "TemporaryDockingGuide";
+
+  group.add(guideGroup);
 
   const frameMaterial =
     new THREE.MeshStandardMaterial({
@@ -69,52 +128,66 @@ export function createDockingStation(
       roughness: 0.3,
     });
 
- 
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(
-      2.4,
-      0.16,
-      16,
-      64
-    ),
-    ringMaterial
-  );
+  const ring =
+    new THREE.Mesh(
+      new THREE.TorusGeometry(
+        2.4,
+        0.16,
+        16,
+        64
+      ),
+      ringMaterial
+    );
 
-  group.add(ring);
+  ring.name =
+    "DockingGuideRing";
 
-  const ringMarker = new THREE.Mesh(
-    new THREE.BoxGeometry(
-      0.25,
-      0.7,
-      0.25
-    ),
+  guideGroup.add(ring);
+
+  const ringMarkerMaterial =
     new THREE.MeshStandardMaterial({
       color: 0xf97316,
       emissive: 0x7c2d12,
       emissiveIntensity: 2,
-    })
-  );
+    });
+
+  const ringMarker =
+    new THREE.Mesh(
+      new THREE.BoxGeometry(
+        0.25,
+        0.7,
+        0.25
+      ),
+      ringMarkerMaterial
+    );
+
+  ringMarker.name =
+    "DockingRingTopMarker";
 
   ringMarker.position.y = 2.4;
 
   ring.add(ringMarker);
 
- 
+  const frameMeshes = [];
+
   function createFramePart(
     size,
     position
   ) {
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        size.x,
-        size.y,
-        size.z
-      ),
-      frameMaterial
-    );
+    const mesh =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          size.x,
+          size.y,
+          size.z
+        ),
+        frameMaterial
+      );
 
     mesh.position.copy(position);
-    group.add(mesh);
+
+    guideGroup.add(mesh);
+    frameMeshes.push(mesh);
 
     return mesh;
   }
@@ -135,47 +208,39 @@ export function createDockingStation(
 
   createFramePart(
     horizontalSize,
-    new THREE.Vector3(0, 2.65, 0)
+    new THREE.Vector3(
+      0,
+      2.65,
+      0
+    )
   );
 
   createFramePart(
     horizontalSize,
-    new THREE.Vector3(0, -2.65, 0)
+    new THREE.Vector3(
+      0,
+      -2.65,
+      0
+    )
   );
 
   createFramePart(
     verticalSize,
-    new THREE.Vector3(-2.65, 0, 0)
+    new THREE.Vector3(
+      -2.65,
+      0,
+      0
+    )
   );
 
   createFramePart(
     verticalSize,
-    new THREE.Vector3(2.65, 0, 0)
+    new THREE.Vector3(
+      2.65,
+      0,
+      0
+    )
   );
-
-  
-  const sensorMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(
-      2.4,
-      1.4,
-      1.5
-    ),
-    new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.08,
-      depthWrite: false,
-    })
-  );
-
-
-  sensorMesh.position.set(
-    0,
-    0,
-    SENSOR_POSITION_Z
-  );
-
-  group.add(sensorMesh);
 
   const dockingLight =
     new THREE.PointLight(
@@ -183,6 +248,9 @@ export function createDockingStation(
       15,
       10
     );
+
+  dockingLight.name =
+    "DockingLight";
 
   dockingLight.position.set(
     0,
@@ -192,123 +260,23 @@ export function createDockingStation(
 
   group.add(dockingLight);
 
- 
-  const rigidBodyDescription =
-    RAPIER.RigidBodyDesc.fixed()
-      .setTranslation(
-        0,
-        0,
-        STATION_Z
-      );
+  /*
+   * Actual Rapier physics.
+   */
+  const physics =
+    createGatewayPhysics({
+      world,
+      RAPIER,
+    });
 
-  const rigidBody =
-    world.createRigidBody(
-      rigidBodyDescription
+  /*
+   * Three.js wireframes representing the
+   * Rapier colliders and sensor.
+   */
+  const colliderDebug =
+    createGatewayColliderDebug(
+      group
     );
-
-  
-  function addFrameCollider(
-    halfExtents,
-    position
-  ) {
-    const description =
-      RAPIER.ColliderDesc.cuboid(
-        halfExtents.x,
-        halfExtents.y,
-        halfExtents.z
-      )
-        .setTranslation(
-          position.x,
-          position.y,
-          position.z
-        )
-        .setFriction(0.6)
-        .setRestitution(0.05);
-
-    return world.createCollider(
-      description,
-      rigidBody
-    );
-  }
-
-  const frameColliders = [
-    addFrameCollider(
-      new THREE.Vector3(
-        2.9,
-        0.25,
-        0.3
-      ),
-      new THREE.Vector3(
-        0,
-        2.65,
-        0
-      )
-    ),
-
-    addFrameCollider(
-      new THREE.Vector3(
-        2.9,
-        0.25,
-        0.3
-      ),
-      new THREE.Vector3(
-        0,
-        -2.65,
-        0
-      )
-    ),
-
-    addFrameCollider(
-      new THREE.Vector3(
-        0.25,
-        2.4,
-        0.3
-      ),
-      new THREE.Vector3(
-        -2.65,
-        0,
-        0
-      )
-    ),
-
-    addFrameCollider(
-      new THREE.Vector3(
-        0.25,
-        2.4,
-        0.3
-      ),
-      new THREE.Vector3(
-        2.65,
-        0,
-        0
-      )
-    ),
-  ];
-
-  
-  const sensorDescription =
-    RAPIER.ColliderDesc.cuboid(
-      1.2,
-      0.7,
-      0.75
-    )
-      .setTranslation(
-        0,
-        0,
-        SENSOR_POSITION_Z
-      )
-      .setSensor(true)
-      .setActiveEvents(
-        RAPIER.ActiveEvents
-          .COLLISION_EVENTS
-      );
-
-  const dockingSensor =
-    world.createCollider(
-      sensorDescription,
-      rigidBody
-    );
-
 
   function setStatus(status) {
     const style =
@@ -325,15 +293,118 @@ export function createDockingStation(
 
     ringMaterial.emissiveIntensity =
       style.intensity;
+
+    dockingLight.color.setHex(
+      style.lightColor
+    );
   }
+
+  function setGuideVisible(
+    visible
+  ) {
+    guideGroup.visible = visible;
+  }
+
+  function setColliderDebugVisible(
+    visible
+  ) {
+    colliderDebug.setVisible(
+      visible
+    );
+  }
+
+  function toggleColliderDebug() {
+    return colliderDebug.toggle();
+  }
+
+  function setSensorDebugVisible(
+    visible
+  ) {
+    colliderDebug.setSensorVisible(
+      visible
+    );
+  }
+
+  function dispose() {
+    colliderDebug.dispose();
+    dockingPort.dispose();
+
+    scene.remove(group);
+
+    ring.geometry.dispose();
+    ringMaterial.dispose();
+
+    ringMarker.geometry.dispose();
+    ringMarkerMaterial.dispose();
+
+    frameMeshes.forEach(
+      (mesh) => {
+        mesh.geometry.dispose();
+      }
+    );
+
+    frameMaterial.dispose();
+  }
+
+  setStatus("approach");
 
   return {
     group,
+
     ring,
-    sensorMesh,
-    rigidBody,
-    frameColliders,
-    dockingSensor,
+    ringMarker,
+    guideGroup,
+    dockingLight,
+
+    rigidBody:
+      physics.rigidBody,
+
+    /*
+     * DockingEventHandler currently expects
+     * station.frameColliders.
+     */
+    frameColliders:
+      physics.solidColliders,
+
+    colliders:
+      physics.solidColliders,
+
+    dockingSensor:
+      physics.dockingSensor,
+
+    ownsSolidCollider:
+      physics.ownsSolidCollider,
+
+    dockingAdapterCollider:
+      physics.dockingAdapterCollider,
+
+    forwardModuleCollider:
+      physics.forwardModuleCollider,
+
+    coreModuleCollider:
+      physics.coreModuleCollider,
+
+    sideModuleCollider:
+      physics.sideModuleCollider,
+
+    dockingPort:
+      dockingPort.anchor,
+
+    setDockingPortDebugVisible:
+      dockingPort.setDebugVisible,
+
+    colliderDebug:
+      colliderDebug.group,
+
+    sensorMesh:
+      colliderDebug.sensorMesh,
+
     setStatus,
+    setGuideVisible,
+    setColliderDebugVisible,
+    toggleColliderDebug,
+    setSensorDebugVisible,
+
+    dispose,
   };
 }
