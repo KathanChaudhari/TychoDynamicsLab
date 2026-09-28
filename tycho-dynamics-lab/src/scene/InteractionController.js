@@ -22,6 +22,7 @@ const CONTROLLED_KEYS = new Set([
   "KeyP",
   "KeyV",
   "KeyC",
+  "Enter",
 ]);
 
 export function createInteractionController({
@@ -31,6 +32,7 @@ export function createInteractionController({
   controls,
   spacecraft,
   station,
+  onStartMission,
   onReset,
   onUndock,
   onLaunchProbe,
@@ -154,10 +156,19 @@ export function createInteractionController({
         .setDockingPortDebugVisible?.(
           visible
         );
+
+        if (event.code === "Enter") {
+  onStartMission?.();
+  return true;
+}
     
       return true;
     }
 
+    if (event.code === "Enter") {
+      onStartMission?.();
+      return true;
+    }
     return false;
   }
 

@@ -7,6 +7,10 @@ import DockingReticle from "./components/DockingReticle";
 import ControlGuide from "./components/ControlGuide";
 import LoadingScreen from "./components/LoadingScreen";
 
+import MissionBriefing from "./components/MissionBriefing";
+import MissionStatus from "./components/MissionStatus";
+import MissionResult from "./components/MissionResult";
+
 const INITIAL_TELEMETRY = {
   state: "approach",
   insideSensor: false,
@@ -50,6 +54,7 @@ const INITIAL_TELEMETRY = {
     maximumCaptureDistance: 0.8,
     crashForce: 5000,
   },
+
   propellant: {
     capacity: 120,
     remaining: 120,
@@ -58,6 +63,15 @@ const INITIAL_TELEMETRY = {
     dryMass: 880,
     estimatedMass: 1000,
     status: "nominal",
+  },
+
+  mission: {
+    status: "briefing",
+    elapsedTime: 0,
+    score: 1000,
+    propellantUsed: 0,
+    maximumImpact: 0,
+    result: null,
   },
 };
 
@@ -82,6 +96,12 @@ export default function App() {
     INITIAL_LOADING_STATE
   );
 
+  const mission =
+    telemetry.mission;
+
+  const missionActive =
+    mission?.status === "active";
+
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-slate-950">
       <BasicScene
@@ -95,11 +115,28 @@ export default function App() {
         telemetry={telemetry}
       />
 
-      <DockingReticle
-        telemetry={telemetry}
+      {missionActive && (
+        <DockingReticle
+          telemetry={telemetry}
+        />
+      )}
+
+      <MissionStatus
+        mission={mission}
       />
 
       <ControlGuide />
+
+      {loadingState.status ===
+        "ready" && (
+        <MissionBriefing
+          mission={mission}
+        />
+      )}
+
+      <MissionResult
+        mission={mission}
+      />
 
       <LoadingScreen
         loadingState={loadingState}

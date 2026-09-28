@@ -15,6 +15,7 @@ export function startSimulationLoop({
   physicsEvents,
   spacecraft,
   dockingSystem,
+  missionSystem,
   probeSystem,
   pressedKeys,
   onTelemetry,
@@ -26,6 +27,17 @@ export function startSimulationLoop({
 
   let telemetryAccumulator =
     TELEMETRY_INTERVAL;
+
+  function getCombinedTelemetry() {
+    return {
+      ...dockingSystem
+        .getTelemetry(),
+
+      mission:
+        missionSystem
+          .getTelemetry(),
+    };
+  }
 
   function animate() {
     const frameTime =
@@ -44,15 +56,19 @@ export function startSimulationLoop({
       physicsAccumulator >=
       FIXED_TIME_STEP
     ) {
+      const canControl =
+        missionSystem.canControl() &&
+        dockingSystem.canControl();
+
       const activeKeys =
-        dockingSystem.canControl()
+        canControl
           ? pressedKeys
           : EMPTY_KEYS;
 
-          spacecraft.applyControls(
-            activeKeys,
-            FIXED_TIME_STEP
-          );
+      spacecraft.applyControls(
+        activeKeys,
+        FIXED_TIME_STEP
+      );
 
       dockingSystem
         .beforePhysicsStep();
@@ -68,6 +84,15 @@ export function startSimulationLoop({
         .afterPhysicsStep(
           FIXED_TIME_STEP
         );
+
+      const dockingTelemetry =
+        dockingSystem
+          .getTelemetry();
+
+      missionSystem.update(
+        FIXED_TIME_STEP,
+        dockingTelemetry
+      );
 
       physicsAccumulator -=
         FIXED_TIME_STEP;
@@ -90,8 +115,7 @@ export function startSimulationLoop({
       TELEMETRY_INTERVAL
     ) {
       onTelemetry?.(
-        dockingSystem
-          .getTelemetry()
+        getCombinedTelemetry()
       );
 
       telemetryAccumulator = 0;
@@ -108,6 +132,9 @@ export function startSimulationLoop({
   );
 
   return {
+    getTelemetry:
+      getCombinedTelemetry,
+
     stop() {
       renderer.setAnimationLoop(
         null

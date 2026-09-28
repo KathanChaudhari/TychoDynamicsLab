@@ -7,43 +7,47 @@ import RAPIER from "@dimforge/rapier3d-compat";
 
 import {
   createSceneEnvironment,
-} from "./scene/SceneEnvironment";
+} from "./scene/SceneEnvironment.js";
 
 import {
   createInteractionController,
-} from "./scene/InteractionController";
+} from "./scene/InteractionController.js";
 
 import {
   startSimulationLoop,
-} from "./scene/SimulationLoop";
+} from "./scene/SimulationLoop.js";
 
 import {
   createPhysicsEventRouter,
-} from "./scene/PhysicsEventRouter";
+} from "./scene/PhysicsEventRouter.js";
 
 import {
   createSpacecraft,
-} from "./scene/spacecraft/Spacecraft";
+} from "./scene/spacecraft/Spacecraft.js";
 
 import {
   createDockingStation,
-} from "./scene/docking/DockingStation";
+} from "./scene/docking/DockingStation.js";
 
 import {
   createDockingSystem,
-} from "./scene/docking/DockingSystem";
+} from "./scene/docking/DockingSystem.js";
 
 import {
   createTargetField,
-} from "./scene/projectiles/TargetField";
+} from "./scene/projectiles/TargetField.js";
 
 import {
   createProbeSystem,
-} from "./scene/projectiles/ProbeSystem";
+} from "./scene/projectiles/ProbeSystem.js";
 
 import {
   createGatewayModel,
-} from "./scene/docking/visuals/GatewayModel";
+} from "./scene/docking/visuals/GatewayModel.js";
+
+import {
+  createMissionSystem,
+} from "./scene/mission/MissionSystem.js";
 
 let rapierInitializationPromise = null;
 
@@ -60,7 +64,8 @@ export default function BasicScene({
   onTelemetry,
   onLoadingState,
 }) {
-  const containerRef = useRef(null);
+  const containerRef =
+    useRef(null);
 
   useEffect(() => {
     const container =
@@ -108,6 +113,10 @@ export default function BasicScene({
         "Building scene"
       );
 
+      // ========================================
+      // Three.js environment
+      // ========================================
+
       const environment =
         createSceneEnvironment(
           container
@@ -119,6 +128,10 @@ export default function BasicScene({
         renderer,
         controls,
       } = environment;
+
+      // ========================================
+      // Rapier world and events
+      // ========================================
 
       const world =
         new RAPIER.World({
@@ -135,7 +148,10 @@ export default function BasicScene({
           eventQueue
         );
 
-    
+      // ========================================
+      // Orion spacecraft
+      // ========================================
+
       const spacecraft =
         createSpacecraft(
           scene,
@@ -150,7 +166,6 @@ export default function BasicScene({
                 const modelProgress =
                   state.progress ?? 0;
 
-               
                 const mappedProgress =
                   10 +
                   modelProgress * 0.75;
@@ -194,57 +209,79 @@ export default function BasicScene({
           }
         );
 
+      // ========================================
+      // Gateway station physics
+      // ========================================
+
       const station =
         createDockingStation(
           scene,
           world,
           RAPIER
         );
-        const gateway =
-  createGatewayModel({
-    stationGroup:
-      station.group,
 
-    onLoadingChange(state) {
-      if (
-        state.status === "loading"
-      ) {
-        const progress =
-          state.progress ?? 0;
+      // ========================================
+      // Gateway GLB model
+      // ========================================
 
-       
-        const mappedProgress =
-          35 + progress * 0.55;
+      const gateway =
+        createGatewayModel({
+          stationGroup:
+            station.group,
 
-        setLoadingState(
-          "loading",
-          Math.round(
-            mappedProgress
-          ),
-          "Loading Gateway core"
-        );
-      }
+          onLoadingChange(state) {
+            if (
+              state.status ===
+              "loading"
+            ) {
+              const progress =
+                state.progress ?? 0;
 
-      if (
-        state.status === "ready"
-      ) {
-        setLoadingState(
-          "loading",
-          92,
-          "Preparing docking systems"
-        );
-      }
+              const mappedProgress =
+                35 +
+                progress * 0.55;
 
-      if (
-        state.status === "error"
-      ) {
-        console.warn(
-          "Gateway loading failed:",
-          state.error
-        );
-      }
-    },
-  });
+              setLoadingState(
+                "loading",
+                Math.round(
+                  mappedProgress
+                ),
+                "Loading Gateway core"
+              );
+            }
+
+            if (
+              state.status ===
+              "ready"
+            ) {
+              setLoadingState(
+                "loading",
+                92,
+                "Preparing docking systems"
+              );
+            }
+
+            if (
+              state.status ===
+              "error"
+            ) {
+              console.warn(
+                "Gateway loading failed:",
+                state.error
+              );
+
+              setLoadingState(
+                "loading",
+                92,
+                "Using primitive station"
+              );
+            }
+          },
+        });
+
+      // ========================================
+      // Projectile target field
+      // ========================================
 
       const targetField =
         createTargetField({
@@ -253,6 +290,10 @@ export default function BasicScene({
           RAPIER,
         });
 
+      // ========================================
+      // Docking system
+      // ========================================
+
       const dockingSystem =
         createDockingSystem({
           world,
@@ -260,6 +301,23 @@ export default function BasicScene({
           spacecraft,
           station,
         });
+
+      // ========================================
+      // Mission lifecycle
+      // ========================================
+
+      const missionSystem =
+        createMissionSystem();
+
+      /*
+       * Prevent Enter from starting the mission
+       * while models are still loading.
+       */
+      let missionReady = false;
+
+      // ========================================
+      // Probe system
+      // ========================================
 
       const probeSystem =
         createProbeSystem({
@@ -271,6 +329,35 @@ export default function BasicScene({
           targetField,
         });
 
+      // ========================================
+      // Combined React telemetry
+      // ========================================
+
+      function getCombinedTelemetry() {
+        return {
+          ...dockingSystem
+            .getTelemetry(),
+
+          mission:
+            missionSystem
+              .getTelemetry(),
+        };
+      }
+
+      function publishTelemetry() {
+        if (cancelled) {
+          return;
+        }
+
+        onTelemetry?.(
+          getCombinedTelemetry()
+        );
+      }
+
+      // ========================================
+      // Physics event listeners
+      // ========================================
+
       const removeDockingListener =
         physicsEvents.addListener(
           dockingSystem
@@ -281,6 +368,10 @@ export default function BasicScene({
           probeSystem
         );
 
+      // ========================================
+      // Keyboard and pointer interactions
+      // ========================================
+
       const interactions =
         createInteractionController({
           scene,
@@ -290,31 +381,78 @@ export default function BasicScene({
           spacecraft,
           station,
 
+          onStartMission() {
+            if (!missionReady) {
+              return;
+            }
+
+            const propellant =
+              spacecraft
+                .getPropellantTelemetry();
+
+            missionSystem.start(
+              propellant.remaining
+            );
+
+            publishTelemetry();
+          },
+
           onReset() {
+            /*
+             * Reset physics first because
+             * spacecraft.reset() also refills
+             * propellant.
+             */
             dockingSystem.reset();
             spacecraft.reset();
 
-            onTelemetry?.(
-              dockingSystem.getTelemetry()
+            const propellant =
+              spacecraft
+                .getPropellantTelemetry();
+
+            missionSystem.reset(
+              propellant.remaining
             );
+
+            publishTelemetry();
           },
 
           onUndock() {
-            dockingSystem.undock();
+            /*
+             * Only allow manual undocking while
+             * the mission is active.
+             */
+            if (
+              !missionSystem
+                .canControl()
+            ) {
+              return;
+            }
 
-            onTelemetry?.(
-              dockingSystem.getTelemetry()
-            );
+            dockingSystem.undock();
+            publishTelemetry();
           },
 
           onLaunchProbe() {
+            if (
+              !missionSystem
+                .canControl()
+            ) {
+              return;
+            }
+
             probeSystem.launch();
           },
 
           onToggleTrajectory() {
-            probeSystem.toggleTrajectory();
+            probeSystem
+              .toggleTrajectory();
           },
         });
+
+      // ========================================
+      // Main render and physics loop
+      // ========================================
 
       const simulation =
         startSimulationLoop({
@@ -326,6 +464,7 @@ export default function BasicScene({
           physicsEvents,
           spacecraft,
           dockingSystem,
+          missionSystem,
           probeSystem,
 
           pressedKeys:
@@ -334,9 +473,15 @@ export default function BasicScene({
           onTelemetry,
         });
 
-      onTelemetry?.(
-        dockingSystem.getTelemetry()
-      );
+      /*
+       * Initial telemetry shows the mission
+       * briefing state.
+       */
+      publishTelemetry();
+
+      // ========================================
+      // Wait for both GLB models
+      // ========================================
 
       Promise.all([
         spacecraft.modelReady,
@@ -349,10 +494,12 @@ export default function BasicScene({
           if (cancelled) {
             return;
           }
-      
+
+          missionReady = true;
+
           let message =
             "Simulation ready";
-      
+
           if (
             !loadedSpacecraft &&
             !loadedGateway
@@ -370,14 +517,25 @@ export default function BasicScene({
             message =
               "Using primitive station";
           }
-      
+
           setLoadingState(
             "ready",
             100,
             message
           );
+
+          /*
+           * Publish again so React immediately
+           * receives the briefing state when the
+           * loading screen disappears.
+           */
+          publishTelemetry();
         }
       );
+
+      // ========================================
+      // Cleanup
+      // ========================================
 
       cleanupScene = () => {
         simulation.stop();
@@ -391,9 +549,14 @@ export default function BasicScene({
         probeSystem.dispose();
         targetField.dispose();
 
+        /*
+         * Gateway is a child of station.group,
+         * so dispose it before the station.
+         */
         gateway.dispose();
+        station.dispose();
         spacecraft.dispose();
-        
+
         eventQueue.free();
         world.free();
 
@@ -401,18 +564,20 @@ export default function BasicScene({
       };
     }
 
-    initialize().catch((error) => {
-      console.error(
-        "Simulation initialization failed:",
-        error
-      );
+    initialize().catch(
+      (error) => {
+        console.error(
+          "Simulation initialization failed:",
+          error
+        );
 
-      setLoadingState(
-        "error",
-        0,
-        "Could not start simulation"
-      );
-    });
+        setLoadingState(
+          "error",
+          0,
+          "Could not start simulation"
+        );
+      }
+    );
 
     return () => {
       cancelled = true;
