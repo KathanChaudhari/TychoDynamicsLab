@@ -14,13 +14,16 @@ import {
   createSpacecraftColliderDebug,
 } from "./SpacecraftColliderDebug.js";
 
+import {
+  createSpacecraftThrusterVisuals,
+} from "./SpacecraftThrusterVisuals.js";
+
 export function createSpacecraft(
   scene,
   world,
   RAPIER,
   options = {}
 ) {
-  // Three.js visual model
   const model =
     createSpacecraftModel(
       scene,
@@ -30,7 +33,6 @@ export function createSpacecraft(
       }
     );
 
-  // Rapier rigid body and colliders
   const physics =
     createSpacecraftPhysics({
       world,
@@ -38,17 +40,37 @@ export function createSpacecraft(
       model,
     });
 
-  // Keyboard thrust and torque controls
   const flightController =
     createFlightController(
       physics.rigidBody
     );
 
-  // Visible wireframes representing Rapier colliders
   const colliderDebug =
     createSpacecraftColliderDebug(
       model.group
     );
+
+  const thrusterVisuals =
+    createSpacecraftThrusterVisuals(
+      model.group
+    );
+
+  function applyControls(
+    pressedKeys
+  ) {
+    flightController.applyControls(
+      pressedKeys
+    );
+  }
+
+  function updateThrusterVisuals(
+    deltaTime
+  ) {
+    thrusterVisuals.update(
+      flightController.controlState,
+      deltaTime
+    );
+  }
 
   function updateVelocityArrow() {
     const linearVelocity =
@@ -72,23 +94,21 @@ export function createSpacecraft(
   }
 
   function reset() {
+    flightController.clearControls();
+    thrusterVisuals.reset();
+
     physics.reset();
     model.hideVelocityArrow();
   }
 
   function dispose() {
-    /*
-     * Remove the debug meshes before the main
-     * spacecraft group is disposed.
-     */
+    thrusterVisuals.dispose();
     colliderDebug.dispose();
     model.dispose();
   }
 
   return {
-    // ==========================================
     // Three.js objects
-    // ==========================================
 
     group:
       model.group,
@@ -99,9 +119,10 @@ export function createSpacecraft(
     velocityArrow:
       model.velocityArrow,
 
-    // ==========================================
+    thrusterVisuals:
+      thrusterVisuals.group,
+
     // Docking port
-    // ==========================================
 
     dockingPort:
       model.dockingPort,
@@ -109,9 +130,7 @@ export function createSpacecraft(
     setDockingPortDebugVisible:
       model.setDockingPortDebugVisible,
 
-    // ==========================================
     // Collider visualization
-    // ==========================================
 
     colliderDebug:
       colliderDebug.group,
@@ -119,9 +138,7 @@ export function createSpacecraft(
     setColliderDebugVisible,
     toggleColliderDebug,
 
-    // ==========================================
     // Model loading
-    // ==========================================
 
     modelReady:
       model.ready,
@@ -130,17 +147,11 @@ export function createSpacecraft(
       return model.orionModel;
     },
 
-    // ==========================================
     // Rapier physics
-    // ==========================================
 
     rigidBody:
       physics.rigidBody,
 
-    /*
-     * Primary collider maintained for
-     * compatibility with older code.
-     */
     collider:
       physics.collider,
 
@@ -162,12 +173,12 @@ export function createSpacecraft(
     mass:
       physics.mass,
 
-    // ==========================================
     // Flight controls
-    // ==========================================
 
-    applyControls:
-      flightController.applyControls,
+    applyControls,
+
+    controlState:
+      flightController.controlState,
 
     stopLinearMotion:
       physics.stopLinearMotion,
@@ -175,18 +186,15 @@ export function createSpacecraft(
     stopAngularMotion:
       physics.stopAngularMotion,
 
-    // ==========================================
     // Simulation updates
-    // ==========================================
 
     syncFromPhysics:
       physics.syncModel,
 
     updateVelocityArrow,
+    updateThrusterVisuals,
 
-    // ==========================================
     // Lifecycle
-    // ==========================================
 
     reset,
     dispose,

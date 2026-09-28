@@ -6,14 +6,32 @@ const TORQUE_FORCE = 600;
 export function createFlightController(
   rigidBody
 ) {
-  const localForce = new THREE.Vector3();
-  const worldForce = new THREE.Vector3();
+  const localForce =
+    new THREE.Vector3();
 
-  const localTorque = new THREE.Vector3();
-  const worldTorque = new THREE.Vector3();
+  const worldForce =
+    new THREE.Vector3();
+
+  const localTorque =
+    new THREE.Vector3();
+
+  const worldTorque =
+    new THREE.Vector3();
 
   const orientation =
     new THREE.Quaternion();
+
+  /*
+   * These vectors contain normalized input
+   * values used by the visual thrusters.
+   */
+  const controlState = {
+    translation:
+      new THREE.Vector3(),
+
+    rotation:
+      new THREE.Vector3(),
+  };
 
   function readTranslationInput(
     pressedKeys
@@ -43,24 +61,53 @@ export function createFlightController(
     if (pressedKeys.has("KeyF")) {
       localForce.y -= 1;
     }
+
+    controlState.translation
+      .copy(localForce);
+
+    if (
+      controlState.translation
+        .lengthSq() > 1
+    ) {
+      controlState.translation
+        .normalize();
+    }
   }
 
-  function readRotationInput(pressedKeys) {
+  function readRotationInput(
+    pressedKeys
+  ) {
     localTorque.set(0, 0, 0);
 
-    if (pressedKeys.has("ArrowUp")) {
+    if (
+      pressedKeys.has(
+        "ArrowUp"
+      )
+    ) {
       localTorque.x += 1;
     }
 
-    if (pressedKeys.has("ArrowDown")) {
+    if (
+      pressedKeys.has(
+        "ArrowDown"
+      )
+    ) {
       localTorque.x -= 1;
     }
 
-    if (pressedKeys.has("ArrowLeft")) {
+    if (
+      pressedKeys.has(
+        "ArrowLeft"
+      )
+    ) {
       localTorque.y += 1;
     }
 
-    if (pressedKeys.has("ArrowRight")) {
+    if (
+      pressedKeys.has(
+        "ArrowRight"
+      )
+    ) {
       localTorque.y -= 1;
     }
 
@@ -70,6 +117,17 @@ export function createFlightController(
 
     if (pressedKeys.has("KeyE")) {
       localTorque.z -= 1;
+    }
+
+    controlState.rotation
+      .copy(localTorque);
+
+    if (
+      controlState.rotation
+        .lengthSq() > 1
+    ) {
+      controlState.rotation
+        .normalize();
     }
   }
 
@@ -86,17 +144,23 @@ export function createFlightController(
   }
 
   function applyTranslationForce() {
-    if (localForce.lengthSq() === 0) {
+    if (
+      localForce.lengthSq() === 0
+    ) {
       return;
     }
 
     localForce
       .normalize()
-      .multiplyScalar(THRUST_FORCE);
+      .multiplyScalar(
+        THRUST_FORCE
+      );
 
     worldForce
       .copy(localForce)
-      .applyQuaternion(orientation);
+      .applyQuaternion(
+        orientation
+      );
 
     rigidBody.addForce(
       {
@@ -109,17 +173,23 @@ export function createFlightController(
   }
 
   function applyRotationTorque() {
-    if (localTorque.lengthSq() === 0) {
+    if (
+      localTorque.lengthSq() === 0
+    ) {
       return;
     }
 
     localTorque
       .normalize()
-      .multiplyScalar(TORQUE_FORCE);
+      .multiplyScalar(
+        TORQUE_FORCE
+      );
 
     worldTorque
       .copy(localTorque)
-      .applyQuaternion(orientation);
+      .applyQuaternion(
+        orientation
+      );
 
     rigidBody.addTorque(
       {
@@ -131,20 +201,46 @@ export function createFlightController(
     );
   }
 
-  function applyControls(pressedKeys) {
-    
+  function applyControls(
+    pressedKeys
+  ) {
     rigidBody.resetForces(true);
     rigidBody.resetTorques(true);
 
-    readTranslationInput(pressedKeys);
-    readRotationInput(pressedKeys);
+    readTranslationInput(
+      pressedKeys
+    );
+
+    readRotationInput(
+      pressedKeys
+    );
+
     updateOrientation();
 
     applyTranslationForce();
     applyRotationTorque();
   }
 
+  function clearControls() {
+    localForce.set(0, 0, 0);
+    localTorque.set(0, 0, 0);
+
+    controlState.translation.set(
+      0,
+      0,
+      0
+    );
+
+    controlState.rotation.set(
+      0,
+      0,
+      0
+    );
+  }
+
   return {
+    controlState,
     applyControls,
+    clearControls,
   };
 }
