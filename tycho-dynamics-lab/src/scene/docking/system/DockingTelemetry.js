@@ -50,13 +50,10 @@ export function createDockingTelemetry({
   const lateralPosition =
     new THREE.Vector3();
 
-  const lateralVelocity =
-    new THREE.Vector3();
-
-  const closingVelocityVector =
-    new THREE.Vector3();
-
   const stationLocalError =
+    new THREE.Vector3();
+
+  const stationLocalVelocity =
     new THREE.Vector3();
 
   const inverseStationOrientation =
@@ -67,6 +64,9 @@ export function createDockingTelemetry({
 
     closingSpeed: 0,
     lateralSpeed: 0,
+
+    horizontalSpeed: 0,
+    verticalSpeed: 0,
 
     angularSpeed: 0,
     alignmentAngle: 0,
@@ -109,67 +109,63 @@ export function createDockingTelemetry({
     stationApproachDirection,
   };
 
+  function copyVector(
+    target,
+    source
+  ) {
+    target.set(
+      source.x,
+      source.y,
+      source.z
+    );
+  }
+
+  function copyQuaternion(
+    target,
+    source
+  ) {
+    target.set(
+      source.x,
+      source.y,
+      source.z,
+      source.w
+    );
+  }
+
   function updatePhysicsData() {
-    const position =
-      spacecraft.rigidBody.translation();
-
-    const rotation =
-      spacecraft.rigidBody.rotation();
-
-    const linvel =
-      spacecraft.rigidBody.linvel();
-
-    const angvel =
-      spacecraft.rigidBody.angvel();
-
-    const stationTranslation =
-      station.rigidBody.translation();
-
-    const stationRotation =
-      station.rigidBody.rotation();
-
-    spacecraftPosition.set(
-      position.x,
-      position.y,
-      position.z
+    copyVector(
+      spacecraftPosition,
+      spacecraft.rigidBody
+        .translation()
     );
 
-    spacecraftOrientation.set(
-      rotation.x,
-      rotation.y,
-      rotation.z,
-      rotation.w
+    copyQuaternion(
+      spacecraftOrientation,
+      spacecraft.rigidBody
+        .rotation()
     );
 
-    stationBodyPosition.set(
-      stationTranslation.x,
-      stationTranslation.y,
-      stationTranslation.z
+    copyVector(
+      linearVelocity,
+      spacecraft.rigidBody.linvel()
     );
 
-    stationOrientation.set(
-      stationRotation.x,
-      stationRotation.y,
-      stationRotation.z,
-      stationRotation.w
+    copyVector(
+      angularVelocity,
+      spacecraft.rigidBody.angvel()
     );
 
-    linearVelocity.set(
-      linvel.x,
-      linvel.y,
-      linvel.z
+    copyVector(
+      stationBodyPosition,
+      station.rigidBody
+        .translation()
     );
 
-    angularVelocity.set(
-      angvel.x,
-      angvel.y,
-      angvel.z
+    copyQuaternion(
+      stationOrientation,
+      station.rigidBody.rotation()
     );
 
-    /*
-     * Convert Orion's local docking-port
-     * position into world coordinates.
-     */
     spacecraftDockingPosition
       .copy(
         spacecraft
@@ -189,10 +185,6 @@ export function createDockingTelemetry({
           .dockingPort.quaternion
       );
 
-    /*
-     * Convert Gateway's local docking-port
-     * position into world coordinates.
-     */
     stationPosition
       .copy(
         station.dockingPort.position
@@ -211,9 +203,6 @@ export function createDockingTelemetry({
   }
 
   function updateDirections() {
-    /*
-     * Orion flies toward its local -Z axis.
-     */
     spacecraftForward
       .set(0, 0, -1)
       .applyQuaternion(
@@ -221,10 +210,6 @@ export function createDockingTelemetry({
       )
       .normalize();
 
-    /*
-     * This points from the approach area into
-     * the Gateway docking port.
-     */
     stationApproachDirection
       .set(0, 0, -1)
       .applyQuaternion(
@@ -234,10 +219,6 @@ export function createDockingTelemetry({
   }
 
   function updatePositionMetrics() {
-    /*
-     * Vector from Orion's docking port to
-     * Gateway's docking port.
-     */
     relativePosition
       .copy(stationPosition)
       .sub(
@@ -247,33 +228,27 @@ export function createDockingTelemetry({
     metrics.distance =
       relativePosition.length();
 
-    /*
-     * Distance along the docking approach axis.
-     */
+    const axialDistance =
+      relativePosition.dot(
+        stationApproachDirection
+      );
+
     metrics.axialDistance =
       Math.max(
         0,
-        relativePosition.dot(
-          stationApproachDirection
-        )
+        axialDistance
       );
 
     lateralPosition
       .copy(relativePosition)
       .addScaledVector(
         stationApproachDirection,
-        -relativePosition.dot(
-          stationApproachDirection
-        )
+        -axialDistance
       );
 
     metrics.lateralOffset =
       lateralPosition.length();
 
-    /*
-     * Convert the position error into Gateway's
-     * local coordinate system.
-     */
     inverseStationOrientation
       .copy(
         stationDockingOrientation
@@ -300,41 +275,38 @@ export function createDockingTelemetry({
     metrics.speed =
       linearVelocity.length();
 
-    /*
-     * Dot product gives the portion of velocity
-     * travelling along the docking axis.
-     *
-     * Positive means moving toward Gateway.
-     * Negative means moving away.
-     */
     metrics.closingSpeed =
       linearVelocity.dot(
         stationApproachDirection
       );
 
-    closingVelocityVector
-      .copy(
-        stationApproachDirection
-      )
-      .multiplyScalar(
-        metrics.closingSpeed
+    /*
+     * Convert velocity from world coordinates
+     * into Gateway docking-port coordinates.
+     */
+    stationLocalVelocity
+      .copy(linearVelocity)
+      .applyQuaternion(
+        inverseStationOrientation
       );
 
-    lateralVelocity
-      .copy(linearVelocity)
-      .sub(
-        closingVelocityVector
-      );
+    metrics.horizontalSpeed =
+      stationLocalVelocity.x;
+
+    metrics.verticalSpeed =
+      stationLocalVelocity.y;
 
     metrics.lateralSpeed =
-      lateralVelocity.length();
+      Math.hypot(
+        metrics.horizontalSpeed,
+        metrics.verticalSpeed
+      );
 
     metrics.angularSpeed =
       angularVelocity.length();
 
     if (
-      metrics.closingSpeed >
-        0.001 &&
+      metrics.closingSpeed > 0.001 &&
       metrics.axialDistance > 0
     ) {
       metrics.timeToContact =
@@ -365,37 +337,34 @@ export function createDockingTelemetry({
 
     metrics.checks.lateralSpeed =
       metrics.lateralSpeed <=
-      DOCKING_RULES
-        .maximumLateralSpeed;
+        DOCKING_RULES
+          .maximumLateralSpeed;
 
-    /*
-     * Legacy combined speed check.
-     */
     metrics.checks.speed =
       metrics.checks.closingSpeed &&
       metrics.checks.lateralSpeed;
 
     metrics.checks.angularSpeed =
       metrics.angularSpeed <=
-      DOCKING_RULES
-        .maximumAngularSpeed;
+        DOCKING_RULES
+          .maximumAngularSpeed;
 
     metrics.checks.alignment =
       metrics.alignmentAngle <=
-      THREE.MathUtils.radToDeg(
-        DOCKING_RULES
-          .maximumAlignmentAngle
-      );
+        THREE.MathUtils.radToDeg(
+          DOCKING_RULES
+            .maximumAlignmentAngle
+        );
 
     metrics.checks.lateralOffset =
       metrics.lateralOffset <=
-      DOCKING_RULES
-        .maximumLateralOffset;
+        DOCKING_RULES
+          .maximumLateralOffset;
 
     metrics.checks.distance =
       metrics.distance <=
-      DOCKING_RULES
-        .maximumCaptureDistance;
+        DOCKING_RULES
+          .maximumCaptureDistance;
   }
 
   function updateMetrics() {

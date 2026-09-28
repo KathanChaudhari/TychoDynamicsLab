@@ -276,6 +276,13 @@ export function createDockingSystem({
       lateralSpeed:
         telemetry.metrics
           .lateralSpeed,
+          horizontalSpeed:
+  telemetry.metrics
+    .horizontalSpeed,
+
+verticalSpeed:
+  telemetry.metrics
+    .verticalSpeed,
   
       angularSpeed:
         telemetry.metrics

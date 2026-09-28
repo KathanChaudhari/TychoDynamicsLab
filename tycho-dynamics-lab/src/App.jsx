@@ -3,6 +3,7 @@ import { useState } from "react";
 import BasicScene from "./BasicScene";
 
 import DockingHUD from "./components/DockingHUD";
+import DockingReticle from "./components/DockingReticle";
 import ControlGuide from "./components/ControlGuide";
 import LoadingScreen from "./components/LoadingScreen";
 
@@ -13,8 +14,11 @@ const INITIAL_TELEMETRY = {
   speed: 0,
   closingSpeed: 0,
   lateralSpeed: 0,
-  angularSpeed: 0,
 
+  horizontalSpeed: 0,
+  verticalSpeed: 0,
+
+  angularSpeed: 0,
   alignmentAngle: 0,
 
   horizontalOffset: 0,
@@ -55,8 +59,12 @@ const INITIAL_LOADING_STATE = {
 };
 
 export default function App() {
-  const [telemetry, setTelemetry] =
-    useState(INITIAL_TELEMETRY);
+  const [
+    telemetry,
+    setTelemetry,
+  ] = useState(
+    INITIAL_TELEMETRY
+  );
 
   const [
     loadingState,
@@ -75,6 +83,10 @@ export default function App() {
       />
 
       <DockingHUD
+        telemetry={telemetry}
+      />
+
+      <DockingReticle
         telemetry={telemetry}
       />
 
