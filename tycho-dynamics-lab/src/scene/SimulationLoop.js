@@ -49,9 +49,10 @@ export function startSimulationLoop({
           ? pressedKeys
           : EMPTY_KEYS;
 
-      spacecraft.applyControls(
-        activeKeys
-      );
+          spacecraft.applyControls(
+            activeKeys,
+            FIXED_TIME_STEP
+          );
 
       dockingSystem
         .beforePhysicsStep();

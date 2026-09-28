@@ -18,6 +18,10 @@ import {
   createSpacecraftThrusterVisuals,
 } from "./SpacecraftThrusterVisuals.js";
 
+import {
+  createPropellantSystem,
+} from "./PropellantSystem.js";
+
 export function createSpacecraft(
   scene,
   world,
@@ -45,6 +49,9 @@ export function createSpacecraft(
       physics.rigidBody
     );
 
+  const propellantSystem =
+    createPropellantSystem();
+
   const colliderDebug =
     createSpacecraftColliderDebug(
       model.group
@@ -56,11 +63,23 @@ export function createSpacecraft(
     );
 
   function applyControls(
-    pressedKeys
+    pressedKeys,
+    deltaTime
   ) {
-    flightController.applyControls(
+    flightController.setInput(
       pressedKeys
     );
+
+    const thrustScale =
+      propellantSystem.consume(
+        flightController.controlState,
+        deltaTime
+      );
+
+    flightController
+      .applyCurrentControls(
+        thrustScale
+      );
   }
 
   function updateThrusterVisuals(
@@ -70,6 +89,11 @@ export function createSpacecraft(
       flightController.controlState,
       deltaTime
     );
+  }
+
+  function getPropellantTelemetry() {
+    return propellantSystem
+      .getTelemetry();
   }
 
   function updateVelocityArrow() {
@@ -95,6 +119,7 @@ export function createSpacecraft(
 
   function reset() {
     flightController.clearControls();
+    propellantSystem.reset();
     thrusterVisuals.reset();
 
     physics.reset();
@@ -108,8 +133,6 @@ export function createSpacecraft(
   }
 
   return {
-    // Three.js objects
-
     group:
       model.group,
 
@@ -122,15 +145,11 @@ export function createSpacecraft(
     thrusterVisuals:
       thrusterVisuals.group,
 
-    // Docking port
-
     dockingPort:
       model.dockingPort,
 
     setDockingPortDebugVisible:
       model.setDockingPortDebugVisible,
-
-    // Collider visualization
 
     colliderDebug:
       colliderDebug.group,
@@ -138,16 +157,12 @@ export function createSpacecraft(
     setColliderDebugVisible,
     toggleColliderDebug,
 
-    // Model loading
-
     modelReady:
       model.ready,
 
     get loadedModel() {
       return model.orionModel;
     },
-
-    // Rapier physics
 
     rigidBody:
       physics.rigidBody,
@@ -173,12 +188,12 @@ export function createSpacecraft(
     mass:
       physics.mass,
 
-    // Flight controls
-
     applyControls,
 
     controlState:
       flightController.controlState,
+
+    getPropellantTelemetry,
 
     stopLinearMotion:
       physics.stopLinearMotion,
@@ -186,15 +201,11 @@ export function createSpacecraft(
     stopAngularMotion:
       physics.stopAngularMotion,
 
-    // Simulation updates
-
     syncFromPhysics:
       physics.syncModel,
 
     updateVelocityArrow,
     updateThrusterVisuals,
-
-    // Lifecycle
 
     reset,
     dispose,

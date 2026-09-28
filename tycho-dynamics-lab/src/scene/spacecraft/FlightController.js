@@ -9,10 +9,16 @@ export function createFlightController(
   const localForce =
     new THREE.Vector3();
 
+  const forceDirection =
+    new THREE.Vector3();
+
   const worldForce =
     new THREE.Vector3();
 
   const localTorque =
+    new THREE.Vector3();
+
+  const torqueDirection =
     new THREE.Vector3();
 
   const worldTorque =
@@ -21,16 +27,14 @@ export function createFlightController(
   const orientation =
     new THREE.Quaternion();
 
-  /*
-   * These vectors contain normalized input
-   * values used by the visual thrusters.
-   */
   const controlState = {
     translation:
       new THREE.Vector3(),
 
     rotation:
       new THREE.Vector3(),
+
+    thrustScale: 1,
   };
 
   function readTranslationInput(
@@ -62,16 +66,13 @@ export function createFlightController(
       localForce.y -= 1;
     }
 
-    controlState.translation
-      .copy(localForce);
-
-    if (
-      controlState.translation
-        .lengthSq() > 1
-    ) {
-      controlState.translation
-        .normalize();
-    }
+    /*
+     * Keep raw axis values so simultaneous
+     * thrusters consume additional fuel.
+     */
+    controlState.translation.copy(
+      localForce
+    );
   }
 
   function readRotationInput(
@@ -119,16 +120,19 @@ export function createFlightController(
       localTorque.z -= 1;
     }
 
-    controlState.rotation
-      .copy(localTorque);
+    controlState.rotation.copy(
+      localTorque
+    );
+  }
 
-    if (
-      controlState.rotation
-        .lengthSq() > 1
-    ) {
-      controlState.rotation
-        .normalize();
-    }
+  function setInput(pressedKeys) {
+    readTranslationInput(
+      pressedKeys
+    );
+
+    readRotationInput(
+      pressedKeys
+    );
   }
 
   function updateOrientation() {
@@ -143,21 +147,26 @@ export function createFlightController(
     );
   }
 
-  function applyTranslationForce() {
+  function applyTranslationForce(
+    thrustScale
+  ) {
     if (
-      localForce.lengthSq() === 0
+      localForce.lengthSq() === 0 ||
+      thrustScale <= 0
     ) {
       return;
     }
 
-    localForce
+    forceDirection
+      .copy(localForce)
       .normalize()
       .multiplyScalar(
-        THRUST_FORCE
+        THRUST_FORCE *
+          thrustScale
       );
 
     worldForce
-      .copy(localForce)
+      .copy(forceDirection)
       .applyQuaternion(
         orientation
       );
@@ -172,21 +181,26 @@ export function createFlightController(
     );
   }
 
-  function applyRotationTorque() {
+  function applyRotationTorque(
+    thrustScale
+  ) {
     if (
-      localTorque.lengthSq() === 0
+      localTorque.lengthSq() === 0 ||
+      thrustScale <= 0
     ) {
       return;
     }
 
-    localTorque
+    torqueDirection
+      .copy(localTorque)
       .normalize()
       .multiplyScalar(
-        TORQUE_FORCE
+        TORQUE_FORCE *
+          thrustScale
       );
 
     worldTorque
-      .copy(localTorque)
+      .copy(torqueDirection)
       .applyQuaternion(
         orientation
       );
@@ -201,24 +215,24 @@ export function createFlightController(
     );
   }
 
-  function applyControls(
-    pressedKeys
+  function applyCurrentControls(
+    thrustScale = 1
   ) {
     rigidBody.resetForces(true);
     rigidBody.resetTorques(true);
 
-    readTranslationInput(
-      pressedKeys
-    );
-
-    readRotationInput(
-      pressedKeys
-    );
+    controlState.thrustScale =
+      thrustScale;
 
     updateOrientation();
 
-    applyTranslationForce();
-    applyRotationTorque();
+    applyTranslationForce(
+      thrustScale
+    );
+
+    applyRotationTorque(
+      thrustScale
+    );
   }
 
   function clearControls() {
@@ -236,11 +250,14 @@ export function createFlightController(
       0,
       0
     );
+
+    controlState.thrustScale = 1;
   }
 
   return {
     controlState,
-    applyControls,
+    setInput,
+    applyCurrentControls,
     clearControls,
   };
 }

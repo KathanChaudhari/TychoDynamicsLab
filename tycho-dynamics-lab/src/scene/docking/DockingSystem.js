@@ -319,6 +319,9 @@ verticalSpeed:
         eventHandler
           .getLastImpactForce(),
   
+          propellant:
+  spacecraft
+    .getPropellantTelemetry(),
       checks: {
         ...telemetry.metrics.checks,
       },

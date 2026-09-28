@@ -15,6 +15,32 @@ const STATE_STYLES = {
     "border-red-500/60 bg-red-500/10 text-red-300",
 };
 
+const PROPELLANT_STYLES = {
+  nominal: {
+    bar: "bg-emerald-400",
+    text: "text-emerald-400",
+    label: "NOMINAL",
+  },
+
+  low: {
+    bar: "bg-amber-400",
+    text: "text-amber-400",
+    label: "LOW",
+  },
+
+  critical: {
+    bar: "bg-orange-500",
+    text: "text-orange-400",
+    label: "CRITICAL",
+  },
+
+  empty: {
+    bar: "bg-rose-500",
+    text: "text-rose-400",
+    label: "EMPTY",
+  },
+};
+
 function formatNumber(
   value,
   digits = 2
@@ -79,6 +105,97 @@ function MetricRow({
         <span />
       )}
     </div>
+  );
+}
+
+function PropellantPanel({
+  propellant,
+}) {
+  const status =
+    propellant?.status ??
+    "nominal";
+
+  const style =
+    PROPELLANT_STYLES[status] ??
+    PROPELLANT_STYLES.nominal;
+
+  const percentage =
+    Math.max(
+      0,
+      Math.min(
+        propellant?.percentage ??
+          100,
+        100
+      )
+    );
+
+  return (
+    <section className="border-t border-white/10 px-5 py-4">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] tracking-[0.18em] text-slate-400">
+          RCS PROPELLANT
+        </span>
+
+        <span
+          className={`text-[10px] font-semibold tracking-wider ${style.text}`}
+        >
+          {style.label}
+        </span>
+      </div>
+
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div
+          className={`h-full rounded-full transition-[width] duration-150 ${style.bar}`}
+          style={{
+            width: `${percentage}%`,
+          }}
+        />
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-3">
+        <div>
+          <p className="text-[9px] tracking-wider text-slate-500">
+            REMAINING
+          </p>
+
+          <p className="mt-1 font-mono text-xs text-slate-200">
+            {formatNumber(
+              propellant?.remaining,
+              1
+            )}{" "}
+            kg
+          </p>
+        </div>
+
+        <div>
+          <p className="text-[9px] tracking-wider text-slate-500">
+            FLOW
+          </p>
+
+          <p className="mt-1 font-mono text-xs text-slate-200">
+            {formatNumber(
+              propellant?.flowRate,
+              2
+            )}{" "}
+            kg/s
+          </p>
+        </div>
+
+        <div>
+          <p className="text-[9px] tracking-wider text-slate-500">
+            MASS
+          </p>
+
+          <p className="mt-1 font-mono text-xs text-slate-200">
+            {formatNumber(
+              propellant?.estimatedMass,
+              0
+            )}{" "}
+            kg
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -173,9 +290,7 @@ export default function DockingHUD({
             1
           )}
           unit="deg"
-          good={
-            checks.alignment
-          }
+          good={checks.alignment}
         />
 
         <MetricRow
@@ -217,9 +332,7 @@ export default function DockingHUD({
             telemetry.axialDistance
           )}
           unit="m"
-          good={
-            checks.distance
-          }
+          good={checks.distance}
         />
 
         <MetricRow
@@ -245,6 +358,12 @@ export default function DockingHUD({
           good={impactGood}
         />
       </div>
+
+      <PropellantPanel
+        propellant={
+          telemetry.propellant
+        }
+      />
 
       <footer className="border-t border-white/10 px-5 py-4">
         <div className="flex items-center gap-3">

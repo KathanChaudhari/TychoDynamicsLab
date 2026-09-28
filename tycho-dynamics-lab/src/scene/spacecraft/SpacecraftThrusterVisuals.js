@@ -418,7 +418,13 @@ export function createSpacecraftThrusterVisuals(
       return 0;
     }
 
-    return Math.abs(value);
+    const thrustScale =
+    controlState.thrustScale ?? 1;
+  
+  return (
+    Math.abs(value) *
+    thrustScale
+  );
   }
 
   function update(

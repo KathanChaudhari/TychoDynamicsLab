@@ -50,6 +50,15 @@ const INITIAL_TELEMETRY = {
     maximumCaptureDistance: 0.8,
     crashForce: 5000,
   },
+  propellant: {
+    capacity: 120,
+    remaining: 120,
+    percentage: 100,
+    flowRate: 0,
+    dryMass: 880,
+    estimatedMass: 1000,
+    status: "nominal",
+  },
 };
 
 const INITIAL_LOADING_STATE = {
