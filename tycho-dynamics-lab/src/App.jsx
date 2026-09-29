@@ -10,7 +10,12 @@ import LoadingScreen from "./components/LoadingScreen";
 import MissionBriefing from "./components/MissionBriefing";
 import MissionStatus from "./components/MissionStatus";
 import MissionResult from "./components/MissionResult";
+import {
+  useCallback,
+  useRef,
+} from "react";
 
+import AudioControl from "./components/AudioControl";
 const INITIAL_TELEMETRY = {
   state: "approach",
   insideSensor: false,
@@ -98,6 +103,49 @@ const INITIAL_LOADING_STATE = {
 
 export default function App() {
 
+  const audioControllerRef =
+  useRef(null);
+
+const [
+  audioAvailable,
+  setAudioAvailable,
+] = useState(false);
+
+const [
+  audioMuted,
+  setAudioMuted,
+] = useState(false);
+
+const handleAudioReady =
+  useCallback((controller) => {
+    audioControllerRef.current =
+      controller;
+
+    setAudioAvailable(
+      Boolean(controller)
+    );
+
+    if (controller) {
+      setAudioMuted(
+        controller.isMuted()
+      );
+    }
+  }, []);
+
+function handleToggleAudio() {
+  const controller =
+    audioControllerRef.current;
+
+  if (!controller) {
+    return;
+  }
+
+  const nextMuted =
+    controller.toggleMuted();
+
+  setAudioMuted(nextMuted);
+}
+
   const [
     telemetry,
     setTelemetry,
@@ -131,6 +179,9 @@ const [
   onTelemetry={setTelemetry}
   onLoadingState={
     setLoadingState
+  }
+  onAudioReady={
+    handleAudioReady
   }
 />
 
@@ -170,6 +221,17 @@ const [
       <LoadingScreen
         loadingState={loadingState}
       />
+
+{loadingState.status ===
+  "ready" && (
+  <AudioControl
+    muted={audioMuted}
+    available={audioAvailable}
+    onToggle={
+      handleToggleAudio
+    }
+  />
+)}
     </main>
   );
 }

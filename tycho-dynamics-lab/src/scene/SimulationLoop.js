@@ -19,6 +19,7 @@ export function startSimulationLoop({
   probeSystem,
   cameraController,
   interactions,
+  audioSystem,
   pressedKeys,
   onTelemetry,
 }) {
@@ -98,6 +99,13 @@ export function startSimulationLoop({
         FIXED_TIME_STEP,
         dockingTelemetry
       );
+      audioSystem.handleTelemetry({
+        ...dockingTelemetry,
+      
+        mission:
+          missionSystem
+            .getTelemetry(),
+      });
 
       physicsAccumulator -=
         FIXED_TIME_STEP;
@@ -111,6 +119,12 @@ export function startSimulationLoop({
     spacecraft
       .updateThrusterVisuals(
         frameTime
+      );
+      audioSystem.updateThrusters(
+        spacecraft.controlState,
+      
+        missionSystem.canControl() &&
+          dockingSystem.canControl()
       );
 
     probeSystem.syncVisuals();

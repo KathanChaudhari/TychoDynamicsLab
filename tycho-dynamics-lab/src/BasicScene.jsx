@@ -57,6 +57,10 @@ import {
   getDifficultyPreset,
 } from "./scene/mission/DifficultyConfig.js";
 
+import {
+  createAudioSystem,
+} from "./scene/audio/AudioSystem.js";
+
 
 let rapierInitializationPromise = null;
 
@@ -73,6 +77,7 @@ export default function BasicScene({
   selectedDifficulty,
   onTelemetry,
   onLoadingState,
+  onAudioReady,
 }) {
   const containerRef =
     useRef(null);
@@ -136,6 +141,20 @@ export default function BasicScene({
         createSceneEnvironment(
           container
         );
+
+        const audioSystem =
+  createAudioSystem();
+
+onAudioReady?.({
+  toggleMuted:
+    audioSystem.toggleMuted,
+
+  setMuted:
+    audioSystem.setMuted,
+
+  isMuted:
+    audioSystem.isMuted,
+});
 
       const {
         scene,
@@ -433,6 +452,7 @@ export default function BasicScene({
               return;
             }
           
+            audioSystem.unlock();
             const difficulty =
               getDifficultyPreset(
                 difficultyRef.current
@@ -529,25 +549,26 @@ export default function BasicScene({
       // ========================================
 
       const simulation =
-        startSimulationLoop({
-          renderer,
-          scene,
-          camera,
-          world,
-          eventQueue,
-          physicsEvents,
-          spacecraft,
-          dockingSystem,
-          missionSystem,
-          probeSystem,
-          cameraController,
-    interactions,
-
-          pressedKeys:
-            interactions.pressedKeys,
-
-          onTelemetry,
-        });
+      startSimulationLoop({
+        renderer,
+        scene,
+        camera,
+        world,
+        eventQueue,
+        physicsEvents,
+        spacecraft,
+        dockingSystem,
+        missionSystem,
+        probeSystem,
+        cameraController,
+        interactions,
+        audioSystem,
+    
+        pressedKeys:
+          interactions.pressedKeys,
+    
+        onTelemetry,
+      });
 
       /*
        * Initial telemetry shows the mission
@@ -636,6 +657,8 @@ export default function BasicScene({
         eventQueue.free();
         world.free();
 
+        audioSystem.dispose();
+onAudioReady?.(null);
         environment.dispose();
         cameraController.dispose();
       };
@@ -663,6 +686,7 @@ export default function BasicScene({
   }, [
     onTelemetry,
     onLoadingState,
+    onAudioReady,
   ]);
 
   return (
