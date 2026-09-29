@@ -32,20 +32,23 @@ export function createSpacecraft(
   RAPIER,
   options = {}
 ) {
+  let difficulty =
+    options.difficulty ?? null;
+
   const model =
-    createSpacecraftModel(
-      scene,
-      {
-        onLoadingChange:
-          options.onLoadingChange,
-      }
-    );
+    createSpacecraftModel(scene, {
+      onLoadingChange:
+        options.onLoadingChange,
+    });
 
   const physics =
     createSpacecraftPhysics({
       world,
       RAPIER,
       model,
+
+      initialPose:
+        difficulty?.startPose,
     });
 
   const flightController =
@@ -54,10 +57,14 @@ export function createSpacecraft(
     );
 
   const propellantSystem =
-    createPropellantSystem();
+    createPropellantSystem(
+      difficulty?.propellant
+    );
 
-    const damageSystem =
-  createDamageSystem();
+  const damageSystem =
+    createDamageSystem(
+      difficulty?.damage
+    );
 
   const colliderDebug =
     createSpacecraftColliderDebug(
@@ -68,6 +75,20 @@ export function createSpacecraft(
     createSpacecraftThrusterVisuals(
       model.group
     );
+
+  function configureDifficulty(
+    nextDifficulty
+  ) {
+    difficulty = nextDifficulty;
+
+    propellantSystem.configure(
+      difficulty.propellant
+    );
+
+    damageSystem.configure(
+      difficulty.damage
+    );
+  }
 
   function applyControls(
     pressedKeys,
@@ -98,52 +119,38 @@ export function createSpacecraft(
     );
   }
 
-  function getPropellantTelemetry() {
-    return propellantSystem
-      .getTelemetry();
-  }
-
   function updateVelocityArrow() {
-    const linearVelocity =
-      physics.rigidBody.linvel();
-
     model.updateVelocityArrow(
-      linearVelocity
+      physics.rigidBody.linvel()
     );
   }
+
   function registerImpact(force) {
     return damageSystem
       .registerImpact(force);
   }
-  
+
   function updateDamage(deltaTime) {
     damageSystem.update(deltaTime);
-  }
-  
-  function getDamageTelemetry() {
-    return damageSystem
-      .getTelemetry();
-  }
-
-  function setColliderDebugVisible(
-    visible
-  ) {
-    colliderDebug.setVisible(
-      visible
-    );
-  }
-
-  function toggleColliderDebug() {
-    return colliderDebug.toggle();
   }
 
   function reset() {
     flightController.clearControls();
-    propellantSystem.reset();
+
+    propellantSystem.reset(
+      difficulty?.propellant
+    );
+
+    damageSystem.reset(
+      difficulty?.damage
+    );
+
     thrusterVisuals.reset();
 
-    physics.reset();
-    damageSystem.reset();
+    physics.reset(
+      difficulty?.startPose
+    );
+
     model.hideVelocityArrow();
   }
 
@@ -154,11 +161,8 @@ export function createSpacecraft(
   }
 
   return {
-    group:
-      model.group,
-
-    modelRoot:
-      model.modelRoot,
+    group: model.group,
+    modelRoot: model.modelRoot,
 
     velocityArrow:
       model.velocityArrow,
@@ -175,11 +179,13 @@ export function createSpacecraft(
     colliderDebug:
       colliderDebug.group,
 
-    setColliderDebugVisible,
-    toggleColliderDebug,
+    setColliderDebugVisible:
+      colliderDebug.setVisible,
 
-    modelReady:
-      model.ready,
+    toggleColliderDebug:
+      colliderDebug.toggle,
+
+    modelReady: model.ready,
 
     get loadedModel() {
       return model.orionModel;
@@ -206,15 +212,24 @@ export function createSpacecraft(
     dockingMechanismCollider:
       physics.dockingMechanismCollider,
 
-    mass:
-      physics.mass,
+    mass: physics.mass,
+
+    configureDifficulty,
 
     applyControls,
 
     controlState:
       flightController.controlState,
 
-    getPropellantTelemetry,
+    getPropellantTelemetry:
+      propellantSystem.getTelemetry,
+
+    registerImpact,
+
+    updateDamage,
+
+    getDamageTelemetry:
+      damageSystem.getTelemetry,
 
     stopLinearMotion:
       physics.stopLinearMotion,
@@ -228,11 +243,7 @@ export function createSpacecraft(
     updateVelocityArrow,
     updateThrusterVisuals,
 
-    registerImpact,
-updateDamage,
-getDamageTelemetry,
     reset,
-    
     dispose,
   };
 }

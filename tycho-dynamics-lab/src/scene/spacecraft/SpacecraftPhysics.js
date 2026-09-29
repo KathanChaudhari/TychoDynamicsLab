@@ -7,10 +7,35 @@ export function createSpacecraftPhysics({
   world,
   RAPIER,
   model,
+  initialPose,
 }) {
+
+
+  const startingPosition =
+    initialPose?.position ?? {
+      x: 0,
+      y: 0,
+      z: 0,
+    };
+
+  const startingRotation =
+    initialPose?.rotation ?? {
+      x: 0,
+      y: 0,
+      z: 0,
+      w: 1,
+    };
+
   const rigidBodyDescription =
     RAPIER.RigidBodyDesc.dynamic()
-      .setTranslation(0, 0, 0)
+      .setTranslation(
+        startingPosition.x,
+        startingPosition.y,
+        startingPosition.z
+      )
+      .setRotation(
+        startingRotation
+      )
       .setLinearDamping(0)
       .setAngularDamping(0)
       .setCcdEnabled(true);
@@ -175,23 +200,29 @@ export function createSpacecraftPhysics({
     );
   }
 
-  function reset() {
-    rigidBody.setTranslation(
-      {
+  function reset(pose) {
+    const position =
+      pose?.position ?? {
         x: 0,
         y: 0,
         z: 0,
-      },
-      true
-    );
+      };
 
-    rigidBody.setRotation(
-      {
+    const rotation =
+      pose?.rotation ?? {
         x: 0,
         y: 0,
         z: 0,
         w: 1,
-      },
+      };
+
+    rigidBody.setTranslation(
+      position,
+      true
+    );
+
+    rigidBody.setRotation(
+      rotation,
       true
     );
 

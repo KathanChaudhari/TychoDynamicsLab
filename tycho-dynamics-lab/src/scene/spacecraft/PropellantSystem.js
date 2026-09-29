@@ -1,14 +1,36 @@
-const PROPELLANT_CAPACITY = 120;
-const SPACECRAFT_DRY_MASS = 880;
+const DEFAULT_SETTINGS = {
+  capacity: 120,
+  dryMass: 880,
+  translationRate: 0.55,
+  rotationRate: 0.2,
+};
 
-const TRANSLATION_RATE = 0.55;
-const ROTATION_RATE = 0.2;
+export function createPropellantSystem(
+  initialSettings = {}
+) {
+  let settings = {
+    ...DEFAULT_SETTINGS,
+    ...initialSettings,
+  };
 
-export function createPropellantSystem() {
   let remaining =
-    PROPELLANT_CAPACITY;
+    settings.capacity;
 
   let flowRate = 0;
+
+  function configure(
+    nextSettings = {}
+  ) {
+    settings = {
+      ...DEFAULT_SETTINGS,
+      ...nextSettings,
+    };
+
+    remaining = Math.min(
+      remaining,
+      settings.capacity
+    );
+  }
 
   function getAxisDemand(vector) {
     return (
@@ -34,9 +56,9 @@ export function createPropellantSystem() {
 
     flowRate =
       translationDemand *
-        TRANSLATION_RATE +
+        settings.translationRate +
       rotationDemand *
-        ROTATION_RATE;
+        settings.rotationRate;
 
     if (flowRate === 0) {
       return 1;
@@ -58,18 +80,12 @@ export function createPropellantSystem() {
         requestedAmount
       );
 
-    remaining -=
-      consumedAmount;
+    remaining -= consumedAmount;
 
     if (remaining < 0.0001) {
       remaining = 0;
     }
 
-    /*
-     * Usually this is 1. It becomes less than
-     * 1 during the final physics step when
-     * only a small amount of fuel remains.
-     */
     return requestedAmount > 0
       ? consumedAmount /
           requestedAmount
@@ -79,7 +95,7 @@ export function createPropellantSystem() {
   function getStatus() {
     const percentage =
       (remaining /
-        PROPELLANT_CAPACITY) *
+        settings.capacity) *
       100;
 
     if (percentage <= 0) {
@@ -100,38 +116,41 @@ export function createPropellantSystem() {
   function getTelemetry() {
     const percentage =
       (remaining /
-        PROPELLANT_CAPACITY) *
+        settings.capacity) *
       100;
 
     return {
-      capacity:
-        PROPELLANT_CAPACITY,
-
+      capacity: settings.capacity,
       remaining,
-
       percentage,
-
       flowRate,
 
       dryMass:
-        SPACECRAFT_DRY_MASS,
+        settings.dryMass,
 
       estimatedMass:
-        SPACECRAFT_DRY_MASS +
+        settings.dryMass +
         remaining,
 
       status: getStatus(),
     };
   }
 
-  function reset() {
+  function reset(
+    nextSettings
+  ) {
+    if (nextSettings) {
+      configure(nextSettings);
+    }
+
     remaining =
-      PROPELLANT_CAPACITY;
+      settings.capacity;
 
     flowRate = 0;
   }
 
   return {
+    configure,
     consume,
     getTelemetry,
     reset,

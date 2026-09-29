@@ -1,12 +1,21 @@
 const MAXIMUM_INTEGRITY = 100;
-
-const MINIMUM_DAMAGE_FORCE = 500;
-const HEAVY_DAMAGE_FORCE = 2000;
-const CATASTROPHIC_FORCE = 5000;
-
 const IMPACT_COOLDOWN = 0.2;
 
-export function createDamageSystem() {
+const DEFAULT_SETTINGS = {
+  minimumDamageForce: 500,
+  heavyDamageForce: 2000,
+  catastrophicForce: 5000,
+  multiplier: 1,
+};
+
+export function createDamageSystem(
+  initialSettings = {}
+) {
+  let settings = {
+    ...DEFAULT_SETTINGS,
+    ...initialSettings,
+  };
+
   let integrity =
     MAXIMUM_INTEGRITY;
 
@@ -17,41 +26,66 @@ export function createDamageSystem() {
   let lastImpactForce = 0;
   let maximumImpactForce = 0;
 
+  function configure(
+    nextSettings = {}
+  ) {
+    settings = {
+      ...DEFAULT_SETTINGS,
+      ...nextSettings,
+    };
+  }
+
   function calculateDamage(force) {
+    const {
+      minimumDamageForce,
+      heavyDamageForce,
+      catastrophicForce,
+      multiplier,
+    } = settings;
+  
     if (
       force <
-      MINIMUM_DAMAGE_FORCE
+      minimumDamageForce
     ) {
       return 0;
     }
-
+  
     if (
       force >=
-      CATASTROPHIC_FORCE
+      catastrophicForce
     ) {
       return MAXIMUM_INTEGRITY;
     }
-
+  
+    let baseDamage;
+  
     if (
       force <
-      HEAVY_DAMAGE_FORCE
+      heavyDamageForce
     ) {
       const progress =
         (force -
-          MINIMUM_DAMAGE_FORCE) /
-        (HEAVY_DAMAGE_FORCE -
-          MINIMUM_DAMAGE_FORCE);
-
-      return 2 + progress * 13;
+          minimumDamageForce) /
+        (heavyDamageForce -
+          minimumDamageForce);
+  
+      baseDamage =
+        2 + progress * 13;
+    } else {
+      const progress =
+        (force -
+          heavyDamageForce) /
+        (catastrophicForce -
+          heavyDamageForce);
+  
+      baseDamage =
+        15 + progress * 45;
     }
-
-    const progress =
-      (force -
-        HEAVY_DAMAGE_FORCE) /
-      (CATASTROPHIC_FORCE -
-        HEAVY_DAMAGE_FORCE);
-
-    return 15 + progress * 45;
+  
+    return Math.min(
+      MAXIMUM_INTEGRITY,
+      baseDamage * multiplier
+    );
   }
 
   function registerImpact(force) {
@@ -65,13 +99,8 @@ export function createDamageSystem() {
 
     const catastrophic =
       force >=
-      CATASTROPHIC_FORCE;
+      settings.catastrophicForce;
 
-    /*
-     * Catastrophic collisions bypass the
-     * cooldown. Smaller repeated contact-force
-     * events are ignored briefly.
-     */
     if (
       cooldown > 0 &&
       !catastrophic
@@ -110,6 +139,7 @@ export function createDamageSystem() {
       damage,
       catastrophic,
       integrity,
+
       destroyed:
         integrity <= 0,
     };
@@ -145,6 +175,7 @@ export function createDamageSystem() {
   function getTelemetry() {
     return {
       integrity,
+
       maximumIntegrity:
         MAXIMUM_INTEGRITY,
 
@@ -165,7 +196,13 @@ export function createDamageSystem() {
     };
   }
 
-  function reset() {
+  function reset(
+    nextSettings
+  ) {
+    if (nextSettings) {
+      configure(nextSettings);
+    }
+
     integrity =
       MAXIMUM_INTEGRITY;
 
@@ -178,6 +215,7 @@ export function createDamageSystem() {
   }
 
   return {
+    configure,
     registerImpact,
     update,
     getTelemetry,

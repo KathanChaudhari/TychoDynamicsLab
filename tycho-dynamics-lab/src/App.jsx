@@ -94,7 +94,10 @@ const INITIAL_LOADING_STATE = {
   message: "Preparing simulation",
 };
 
+
+
 export default function App() {
+
   const [
     telemetry,
     setTelemetry,
@@ -108,6 +111,10 @@ export default function App() {
   ] = useState(
     INITIAL_LOADING_STATE
   );
+const [
+  selectedDifficulty,
+  setSelectedDifficulty,
+] = useState("standard");
 
   const mission =
     telemetry.mission;
@@ -117,12 +124,15 @@ export default function App() {
 
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-slate-950">
-      <BasicScene
-        onTelemetry={setTelemetry}
-        onLoadingState={
-          setLoadingState
-        }
-      />
+     <BasicScene
+  selectedDifficulty={
+    selectedDifficulty
+  }
+  onTelemetry={setTelemetry}
+  onLoadingState={
+    setLoadingState
+  }
+/>
 
       <DockingHUD
         telemetry={telemetry}
@@ -142,8 +152,14 @@ export default function App() {
 
       {loadingState.status ===
         "ready" && (
-        <MissionBriefing
+          <MissionBriefing
           mission={mission}
+          selectedDifficulty={
+            selectedDifficulty
+          }
+          onDifficultyChange={
+            setSelectedDifficulty
+          }
         />
       )}
 

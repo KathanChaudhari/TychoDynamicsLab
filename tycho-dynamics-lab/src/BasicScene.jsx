@@ -53,6 +53,11 @@ import {
   createCameraController,
 } from "./scene/camera/CameraController.js";
 
+import {
+  getDifficultyPreset,
+} from "./scene/mission/DifficultyConfig.js";
+
+
 let rapierInitializationPromise = null;
 
 function initializeRapier() {
@@ -65,16 +70,22 @@ function initializeRapier() {
 }
 
 export default function BasicScene({
+  selectedDifficulty,
   onTelemetry,
   onLoadingState,
 }) {
   const containerRef =
     useRef(null);
 
+    const difficultyRef =
+    useRef(selectedDifficulty);
+
+  
   useEffect(() => {
     const container =
       containerRef.current;
-
+      difficultyRef.current =
+      selectedDifficulty;
     if (!container) {
       return undefined;
     }
@@ -156,12 +167,19 @@ export default function BasicScene({
       // Orion spacecraft
       // ========================================
 
-      const spacecraft =
-        createSpacecraft(
-          scene,
-          world,
-          RAPIER,
-          {
+      const initialDifficulty =
+      getDifficultyPreset(
+        difficultyRef.current
+      );
+
+    const spacecraft =
+  createSpacecraft(
+    scene,
+    world,
+    RAPIER,
+    {
+      difficulty:
+        initialDifficulty,
             onLoadingChange(state) {
               if (
                 state.status ===
@@ -217,6 +235,7 @@ export default function BasicScene({
       // Gateway station physics
       // ========================================
 
+      
       const station =
         createDockingStation(
           scene,
@@ -307,20 +326,25 @@ export default function BasicScene({
       // ========================================
 
       const dockingSystem =
-        createDockingSystem({
-          world,
-          RAPIER,
-          spacecraft,
-          station,
-        });
+      createDockingSystem({
+        world,
+        RAPIER,
+        spacecraft,
+        station,
+    
+        difficulty:
+          initialDifficulty,
+      });
 
       // ========================================
       // Mission lifecycle
       // ========================================
 
       const missionSystem =
-        createMissionSystem();
-
+      createMissionSystem({
+        difficulty:
+          initialDifficulty,
+      });
       /*
        * Prevent Enter from starting the mission
        * while models are still loading.
@@ -398,15 +422,53 @@ export default function BasicScene({
             if (!missionReady) {
               return;
             }
-
+          
+            const missionTelemetry =
+              missionSystem.getTelemetry();
+          
+            if (
+              missionTelemetry.status !==
+              "briefing"
+            ) {
+              return;
+            }
+          
+            const difficulty =
+              getDifficultyPreset(
+                difficultyRef.current
+              );
+          
+            spacecraft.configureDifficulty(
+              difficulty
+            );
+          
+            dockingSystem.setDifficulty(
+              difficulty
+            );
+          
+            missionSystem.setDifficulty(
+              difficulty
+            );
+          
+            dockingSystem.reset();
+            spacecraft.reset();
+          
             const propellant =
               spacecraft
                 .getPropellantTelemetry();
-
+          
+            missionSystem.reset(
+              propellant.remaining
+            );
+          
             missionSystem.start(
               propellant.remaining
             );
-
+          
+            cameraController.setMode(
+              "overview"
+            );
+          
             publishTelemetry();
           },
 

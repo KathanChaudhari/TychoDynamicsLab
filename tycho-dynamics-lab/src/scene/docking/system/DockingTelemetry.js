@@ -1,12 +1,11 @@
 import * as THREE from "three";
 
-import {
-  DOCKING_RULES,
-} from "./DockingConfig.js";
+
 
 export function createDockingTelemetry({
   spacecraft,
   station,
+  getRules,
 }) {
   const spacecraftPosition =
     new THREE.Vector3();
@@ -328,16 +327,18 @@ export function createDockingTelemetry({
   }
 
   function updateChecks() {
+    const rules =
+      getRules();
     metrics.checks.closingSpeed =
       metrics.closingSpeed >=
         -0.01 &&
       metrics.closingSpeed <=
-        DOCKING_RULES
+        rules
           .maximumClosingSpeed;
 
     metrics.checks.lateralSpeed =
       metrics.lateralSpeed <=
-        DOCKING_RULES
+        rules
           .maximumLateralSpeed;
 
     metrics.checks.speed =
@@ -346,24 +347,24 @@ export function createDockingTelemetry({
 
     metrics.checks.angularSpeed =
       metrics.angularSpeed <=
-        DOCKING_RULES
+        rules
           .maximumAngularSpeed;
 
     metrics.checks.alignment =
       metrics.alignmentAngle <=
         THREE.MathUtils.radToDeg(
-          DOCKING_RULES
+          rules
             .maximumAlignmentAngle
         );
 
     metrics.checks.lateralOffset =
       metrics.lateralOffset <=
-        DOCKING_RULES
+        rules
           .maximumLateralOffset;
 
     metrics.checks.distance =
       metrics.distance <=
-        DOCKING_RULES
+        rules
           .maximumCaptureDistance;
   }
 

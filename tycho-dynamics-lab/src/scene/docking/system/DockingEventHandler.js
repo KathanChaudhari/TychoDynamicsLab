@@ -1,10 +1,7 @@
-import {
-  DOCKING_RULES,
-} from "./DockingConfig.js";
-
 export function createDockingEventHandler({
   spacecraft,
   station,
+  getRules,
   onSensorChange,
   onImpact,
   onCrash,
@@ -28,17 +25,12 @@ export function createDockingEventHandler({
   function ownsSpacecraftCollider(
     handle
   ) {
-    if (
-      spacecraft.ownsCollider
-    ) {
-      return spacecraft
-        .ownsCollider(handle);
-    }
-
-    return (
-      handle ===
-      spacecraft.collider.handle
-    );
+    return spacecraft.ownsCollider
+      ? spacecraft.ownsCollider(
+          handle
+        )
+      : handle ===
+          spacecraft.collider.handle;
   }
 
   function handleCollisionEvent(
@@ -46,21 +38,21 @@ export function createDockingEventHandler({
     handle2,
     started
   ) {
-    const handle1IsSensor =
+    const firstIsSensor =
       handle1 === sensorHandle;
 
-    const handle2IsSensor =
+    const secondIsSensor =
       handle2 === sensorHandle;
 
     if (
-      !handle1IsSensor &&
-      !handle2IsSensor
+      !firstIsSensor &&
+      !secondIsSensor
     ) {
       return;
     }
 
     const otherHandle =
-      handle1IsSensor
+      firstIsSensor
         ? handle2
         : handle1;
 
@@ -82,11 +74,6 @@ export function createDockingEventHandler({
       );
     }
 
-    /*
-     * Compound colliders can enter and leave
-     * individually. Orion is inside while at
-     * least one collider overlaps the sensor.
-     */
     onSensorChange(
       sensorContactHandles.size > 0
     );
@@ -143,7 +130,7 @@ export function createDockingEventHandler({
 
     const catastrophic =
       impactForce >=
-      DOCKING_RULES.crashForce;
+      getRules().crashForce;
 
     const destroyed =
       damageResult?.destroyed ??
@@ -155,15 +142,12 @@ export function createDockingEventHandler({
     ) {
       onCrash?.(
         impactForce,
+
         catastrophic
           ? "catastrophic-impact"
           : "hull-destroyed"
       );
     }
-  }
-
-  function getLastImpactForce() {
-    return lastImpactForce;
   }
 
   function reset() {
@@ -177,7 +161,11 @@ export function createDockingEventHandler({
   return {
     handleCollisionEvent,
     handleContactForceEvent,
-    getLastImpactForce,
+
+    getLastImpactForce() {
+      return lastImpactForce;
+    },
+
     reset,
   };
 }

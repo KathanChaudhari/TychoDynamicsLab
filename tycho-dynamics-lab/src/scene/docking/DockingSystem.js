@@ -3,6 +3,7 @@ import * as THREE from "three";
 import {
   DockingState,
   DOCKING_RULES,
+  CAPTURE_SETTINGS,
 } from "./system/DockingConfig";
 
 import {
@@ -31,21 +32,58 @@ export function createDockingSystem({
   RAPIER,
   spacecraft,
   station,
+  difficulty,
 }) {
   let state = DockingState.APPROACH;
+
+  let activeDifficulty =
+  difficulty;
+
+let rules =
+  difficulty?.docking ??
+  DOCKING_RULES;
+
+let captureSettings =
+  difficulty?.capture ??
+  CAPTURE_SETTINGS;
+
+function getRules() {
+  return rules;
+}
+
+function getCaptureSettings() {
+  return captureSettings;
+}
+
+function setDifficulty(
+  nextDifficulty
+) {
+  activeDifficulty =
+    nextDifficulty;
+
+  rules =
+    nextDifficulty.docking;
+
+  captureSettings =
+    nextDifficulty.capture;
+}
+
   let insideSensor = false;
   let crashReason = null;
 
   const telemetry =
-    createDockingTelemetry({
-      spacecraft,
-      station,
-    });
+  createDockingTelemetry({
+    spacecraft,
+    station,
+    getRules,
+  });
 
   const captureController =
     createCaptureController({
       spacecraft,
       telemetry,
+      getSettings:
+        getCaptureSettings,
     });
 
   const jointController =
@@ -57,9 +95,10 @@ export function createDockingSystem({
     });
 
     const eventHandler =
-  createDockingEventHandler({
-    spacecraft,
-    station,
+    createDockingEventHandler({
+      spacecraft,
+      station,
+      getRules,
 
     onSensorChange(started) {
       insideSensor = started;
@@ -136,26 +175,26 @@ export function createDockingSystem({
   
     return (
       metrics.distance <=
-        DOCKING_RULES
+        rules
           .hardLockDistance &&
   
       Math.abs(
         metrics.closingSpeed
       ) <=
-        DOCKING_RULES
+        rules
           .hardLockClosingSpeed &&
   
       metrics.lateralSpeed <=
-        DOCKING_RULES
+        rules
           .hardLockLateralSpeed &&
   
       metrics.angularSpeed <=
-        DOCKING_RULES
+        rules
           .hardLockAngularSpeed &&
   
       metrics.alignmentAngle <=
         THREE.MathUtils.radToDeg(
-          DOCKING_RULES
+          rules
             .hardLockAlignmentAngle
         )
     );
@@ -299,6 +338,16 @@ export function createDockingSystem({
     return {
       state,
       insideSensor,
+      crashReason,
+      difficulty: {
+        id:
+          activeDifficulty?.id ??
+          "standard",
+
+        label:
+          activeDifficulty?.label ??
+          "Standard",
+      },
   
       speed:
         telemetry.metrics.speed,
@@ -365,36 +414,27 @@ verticalSpeed:
   
       limits: {
         maximumClosingSpeed:
-          DOCKING_RULES
-            .maximumClosingSpeed,
-  
+          rules.maximumClosingSpeed,
+
         maximumLateralSpeed:
-          DOCKING_RULES
-            .maximumLateralSpeed,
-  
+          rules.maximumLateralSpeed,
+
         maximumAngularSpeed:
-          DOCKING_RULES
-            .maximumAngularSpeed,
-  
+          rules.maximumAngularSpeed,
+
         maximumAlignmentAngle:
           THREE.MathUtils.radToDeg(
-            DOCKING_RULES
-              .maximumAlignmentAngle
+            rules.maximumAlignmentAngle
           ),
-  
+
         maximumLateralOffset:
-          DOCKING_RULES
-            .maximumLateralOffset,
-  
+          rules.maximumLateralOffset,
+
         maximumCaptureDistance:
-          DOCKING_RULES
-            .maximumCaptureDistance,
-  
+          rules.maximumCaptureDistance,
+
         crashForce:
-          DOCKING_RULES.crashForce,
-          crashReason,
-
-
+          rules.crashForce,
       },
     };
   }
@@ -402,6 +442,7 @@ verticalSpeed:
   telemetry.updateMetrics();
 
   return {
+    setDifficulty,
     beforePhysicsStep,
     handleCollisionEvent,
     handleContactForceEvent,
