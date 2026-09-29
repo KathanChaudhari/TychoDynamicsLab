@@ -4,7 +4,7 @@ import { loadGLTFModel } from "../../loaders/loadGLTFModel";
 
 
 const GATEWAY_MODEL_URL =
-  "/models/gateway-core.glb";
+  "/models/gateway-core-optimized.glb";
 
 /*
  * The Gateway file may use a completely different

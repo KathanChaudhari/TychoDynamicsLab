@@ -1,30 +1,54 @@
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import {
+  GLTFLoader,
+} from "three/addons/loaders/GLTFLoader.js";
 
-const loader = new GLTFLoader();
+import {
+  MeshoptDecoder,
+} from "three/addons/libs/meshopt_decoder.module.js";
 
-export async function loadGLTFModel(
+const loader =
+  new GLTFLoader();
+
+loader.setMeshoptDecoder(
+  MeshoptDecoder
+);
+
+export function loadGLTFModel(
   url,
   onProgress
 ) {
-  const gltf = await loader.loadAsync(
-    url,
-    (event) => {
-      if (!onProgress) {
-        return;
-      }
+  return new Promise(
+    (resolve, reject) => {
+      loader.load(
+        url,
 
-      if (!event.total) {
-        onProgress(null);
-        return;
-      }
+        (gltf) => {
+          resolve(gltf);
+        },
 
-      const percentage = Math.round(
-        (event.loaded / event.total) * 100
+        (event) => {
+          if (
+            !event.total ||
+            event.total <= 0
+          ) {
+            onProgress?.(50);
+            return;
+          }
+
+          const progress =
+            (event.loaded /
+              event.total) *
+            100;
+
+          onProgress?.(
+            Math.round(progress)
+          );
+        },
+
+        (error) => {
+          reject(error);
+        }
       );
-
-      onProgress(percentage);
     }
   );
-
-  return gltf;
 }
