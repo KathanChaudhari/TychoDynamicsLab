@@ -77,14 +77,17 @@ import {
     }
   
     async function unlock() {
-      const currentContext =
-        ensureContext();
-  
-      if (
-        currentContext?.state ===
-        "suspended"
-      ) {
-        await currentContext.resume();
+      try {
+        const currentContext = ensureContext();
+
+        if (currentContext?.state === "suspended") {
+          await currentContext.resume();
+        }
+
+        return Boolean(currentContext);
+      } catch (error) {
+        console.warn("Could not start audio:", error);
+        return false;
       }
     }
   
@@ -92,7 +95,7 @@ import {
       muted = Boolean(nextMuted);
   
       if (!muted) {
-        unlock();
+        void unlock();
       }
   
       if (context && masterGain) {
@@ -301,7 +304,9 @@ import {
         context &&
         context.state !== "closed"
       ) {
-        context.close();
+        void context.close().catch((error) => {
+          console.warn("Could not close audio context:", error);
+        });
       }
   
       context = null;

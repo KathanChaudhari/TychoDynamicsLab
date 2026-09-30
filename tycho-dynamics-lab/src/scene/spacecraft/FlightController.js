@@ -66,10 +66,6 @@ export function createFlightController(
       localForce.y -= 1;
     }
 
-    /*
-     * Keep raw axis values so simultaneous
-     * thrusters consume additional fuel.
-     */
     controlState.translation.copy(
       localForce
     );

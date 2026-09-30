@@ -11,25 +11,14 @@ export function createProbe({
   position,
   inheritedVelocity,
   launchImpulse,
+  geometry,
+  material,
 }) {
   let age = 0;
   let disposed = false;
 
-  const material =
-    new THREE.MeshStandardMaterial({
-      color: 0x67e8f9,
-      emissive: 0x0891b2,
-      emissiveIntensity: 3,
-      metalness: 0.5,
-      roughness: 0.25,
-    });
-
   const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(
-      PROBE_RADIUS,
-      16,
-      12
-    ),
+    geometry,
     material
   );
 
@@ -124,9 +113,6 @@ export function createProbe({
     disposed = true;
 
     scene.remove(mesh);
-
-    mesh.geometry.dispose();
-    mesh.material.dispose();
 
     world.removeRigidBody(
       rigidBody

@@ -8,6 +8,8 @@ import {
   createDockingPortAnchor,
 } from "../docking/DockingPortAnchor.js";
 
+import { disposeObject3D } from "../utils/disposeObject3D.js";
+
 const ORION_MODEL_URL =
   "/models/orion-spacecraft.glb";
 
@@ -18,12 +20,6 @@ const ORION_X_ROTATION =
 
 const ORION_Y_ROTATION = 0;
 
-/*
- * Position relative to SpacecraftPhysicsRoot.
- *
- * Adjust only the Z value until the green marker
- * sits on the Orion docking-port face.
- */
 const ORION_DOCKING_PORT_POSITION =
   new THREE.Vector3(
     0,
@@ -142,70 +138,10 @@ function prepareLoadedModel(model) {
   });
 }
 
-function disposeObject(object) {
-  const geometries = new Set();
-  const materials = new Set();
-  const textures = new Set();
-
-  object.traverse((child) => {
-    if (!child.isMesh) {
-      return;
-    }
-
-    if (
-      child.geometry &&
-      !geometries.has(
-        child.geometry
-      )
-    ) {
-      child.geometry.dispose();
-
-      geometries.add(
-        child.geometry
-      );
-    }
-
-    const childMaterials =
-      Array.isArray(child.material)
-        ? child.material
-        : [child.material];
-
-    childMaterials.forEach(
-      (material) => {
-        if (
-          !material ||
-          materials.has(material)
-        ) {
-          return;
-        }
-
-        for (
-          const value of
-          Object.values(material)
-        ) {
-          if (
-            value?.isTexture &&
-            !textures.has(value)
-          ) {
-            value.dispose();
-            textures.add(value);
-          }
-        }
-
-        material.dispose();
-        materials.add(material);
-      }
-    );
-  });
-}
-
 export function createSpacecraftModel(
   scene,
   options = {}
 ) {
-  /*
-   * This group follows the Rapier rigid body.
-   */
   const group = new THREE.Group();
 
   group.name =
@@ -218,10 +154,6 @@ export function createSpacecraftModel(
 
   scene.add(group);
 
-  /*
-   * Visual corrections are applied below this
-   * group so they do not affect Rapier.
-   */
   const modelRoot =
     new THREE.Group();
 
@@ -230,10 +162,6 @@ export function createSpacecraftModel(
 
   group.add(modelRoot);
 
-  /*
-   * The docking anchor belongs directly to the
-   * physics group, not the scaled visual model.
-   */
   const dockingPort =
     createDockingPortAnchor({
       parent: group,
@@ -280,12 +208,8 @@ export function createSpacecraftModel(
     }
   )
     .then((gltf) => {
-      /*
-       * The loader can finish after React has
-       * already unmounted the scene.
-       */
       if (disposed) {
-        disposeObject(gltf.scene);
+        disposeObject3D(gltf.scene);
         return null;
       }
 
@@ -318,15 +242,11 @@ export function createSpacecraftModel(
         orionModel
       );
 
-      /*
-       * Only remove the primitive after the GLB
-       * has loaded successfully.
-       */
       modelRoot.remove(
         placeholder
       );
 
-      disposeObject(
+      disposeObject3D(
         placeholder
       );
 
@@ -375,9 +295,6 @@ export function createSpacecraftModel(
         error: error.message,
       });
 
-      /*
-       * The primitive placeholder remains visible.
-       */
       return null;
     });
 
@@ -470,9 +387,6 @@ export function createSpacecraftModel(
   function dispose() {
     disposed = true;
 
-    /*
-     * Remove the docking-port marker and arrow.
-     */
     dockingPort.dispose();
 
     if (orionModel) {
@@ -480,23 +394,19 @@ export function createSpacecraftModel(
         orionModel
       );
 
-      disposeObject(
+      disposeObject3D(
         orionModel
       );
 
       orionModel = null;
     }
 
-    /*
-     * The placeholder only has a parent when
-     * model loading failed or hasn't completed.
-     */
     if (placeholder.parent) {
       modelRoot.remove(
         placeholder
       );
 
-      disposeObject(
+      disposeObject3D(
         placeholder
       );
     }

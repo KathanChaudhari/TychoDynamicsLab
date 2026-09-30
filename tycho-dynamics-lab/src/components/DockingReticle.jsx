@@ -94,11 +94,6 @@ export default function DockingReticle({
   const limits =
     telemetry.limits;
 
-  /*
-   * Display a wider range than the actual
-   * capture limit so the marker remains useful
-   * during the approach.
-   */
   const displayRange =
     Math.max(
       limits.maximumLateralOffset *
@@ -126,10 +121,7 @@ export default function DockingReticle({
     normalizedX *
     MARKER_TRAVEL;
 
-  /*
-   * Positive Three.js Y means up.
-   * Positive CSS Y moves down, so invert it.
-   */
+ 
   const markerY =
     -normalizedY *
     MARKER_TRAVEL;

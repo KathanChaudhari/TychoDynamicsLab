@@ -149,10 +149,6 @@ export function createCameraController({
   function calculateDockingView() {
     getSpacecraftTransform();
 
-    /*
-     * Place the camera just ahead of Orion's
-     * docking port so the GLB does not block it.
-     */
     desiredPosition
       .copy(
         DOCKING_CAMERA_OFFSET
@@ -242,10 +238,6 @@ export function createCameraController({
       mode ===
       CameraMode.OVERVIEW
     ) {
-      /*
-       * OrbitControls remains disabled until
-       * the camera reaches the overview view.
-       */
       controls.enabled = false;
       overviewTransition = true;
     } else {

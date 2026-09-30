@@ -158,6 +158,7 @@ export function createSpacecraft(
     thrusterVisuals.dispose();
     colliderDebug.dispose();
     model.dispose();
+    physics.dispose();
   }
 
   return {

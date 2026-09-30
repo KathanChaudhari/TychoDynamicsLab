@@ -15,10 +15,6 @@ export function createDockingPortAnchor({
 
   parent.add(anchor);
 
-  /*
-   * Temporary sphere showing the exact
-   * connection point.
-   */
   const marker = new THREE.Mesh(
     new THREE.SphereGeometry(
       0.1,
@@ -35,10 +31,6 @@ export function createDockingPortAnchor({
 
   anchor.add(marker);
 
-  /*
-   * Shows which direction the docking
-   * port faces.
-   */
   const arrow =
     new THREE.ArrowHelper(
       direction.clone().normalize(),

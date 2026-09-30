@@ -235,6 +235,10 @@ export function createSpacecraftPhysics({
     syncModel();
   }
 
+  function dispose() {
+    world.removeRigidBody(rigidBody);
+  }
+
   console.log(
     "Configured spacecraft mass:",
     SPACECRAFT_MASS
@@ -250,10 +254,6 @@ export function createSpacecraftPhysics({
 
     rigidBody,
 
-    /*
-     * Kept for compatibility with code that
-     * still expects spacecraft.collider.
-     */
     collider:
       dockingMechanismCollider,
 
@@ -268,5 +268,6 @@ export function createSpacecraftPhysics({
     stopLinearMotion,
     stopAngularMotion,
     reset,
+    dispose,
   };
 }

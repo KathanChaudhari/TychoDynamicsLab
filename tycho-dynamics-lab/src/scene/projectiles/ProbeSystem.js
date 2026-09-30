@@ -3,6 +3,7 @@ import * as THREE from "three";
 import {
   createProbe,
   PROBE_MASS,
+  PROBE_RADIUS,
 } from "./Probe";
 
 import {
@@ -29,6 +30,22 @@ export function createProbeSystem({
 }) {
   const probes = new Map();
   const pendingRemoval = new Set();
+
+  const probeGeometry =
+    new THREE.SphereGeometry(
+      PROBE_RADIUS,
+      16,
+      12
+    );
+
+  const probeMaterial =
+    new THREE.MeshStandardMaterial({
+      color: 0x67e8f9,
+      emissive: 0x0891b2,
+      emissiveIntensity: 3,
+      metalness: 0.5,
+      roughness: 0.25,
+    });
 
   const trajectory =
     createProbeTrajectory(scene);
@@ -164,6 +181,8 @@ export function createProbeSystem({
       position: launchPosition,
       inheritedVelocity,
       launchImpulse,
+      geometry: probeGeometry,
+      material: probeMaterial,
     });
 
     probes.set(
@@ -267,6 +286,8 @@ export function createProbeSystem({
     pendingRemoval.clear();
 
     trajectory.dispose();
+    probeGeometry.dispose();
+    probeMaterial.dispose();
   }
 
   return {

@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import {
   DIFFICULTY_OPTIONS,
   getDifficultyPreset,
@@ -10,13 +12,13 @@ function degrees(radians) {
   );
 }
 
-export default function MissionBriefing({
-  mission,
+function MissionBriefing({
+  missionStatus,
   selectedDifficulty,
   onDifficultyChange,
 }) {
   if (
-    mission?.status !==
+    missionStatus !==
     "briefing"
   ) {
     return null;
@@ -159,3 +161,5 @@ function Metric({
     </div>
   );
 }
+
+export default memo(MissionBriefing);

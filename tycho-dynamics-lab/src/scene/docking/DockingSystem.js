@@ -22,6 +22,8 @@ import {
   createDockingEventHandler,
 } from "./system/DockingEventHandler";
 
+import { createDockingTelemetrySnapshot } from "./system/createDockingTelemetrySnapshot.js";
+
 
 export {
   DockingState,
@@ -332,111 +334,27 @@ function setDifficulty(
     return state;
   }
 
-  function getTelemetry() {
-    telemetry.updateMetrics();
+  function getTelemetry({ refresh = true } = {}) {
+    if (refresh) {
+      telemetry.updateMetrics();
+    }
   
-    return {
+    return createDockingTelemetrySnapshot({
       state,
       insideSensor,
       crashReason,
-      difficulty: {
-        id:
-          activeDifficulty?.id ??
-          "standard",
+      difficulty: activeDifficulty,
+      metrics: telemetry.metrics,
+      impactForce: eventHandler.getLastImpactForce(),
+      damage: spacecraft.getDamageTelemetry(),
+      propellant: spacecraft.getPropellantTelemetry(),
+      rules,
+    });
+  }
 
-        label:
-          activeDifficulty?.label ??
-          "Standard",
-      },
-  
-      speed:
-        telemetry.metrics.speed,
-  
-      closingSpeed:
-        telemetry.metrics
-          .closingSpeed,
-  
-      lateralSpeed:
-        telemetry.metrics
-          .lateralSpeed,
-          horizontalSpeed:
-  telemetry.metrics
-    .horizontalSpeed,
-
-verticalSpeed:
-  telemetry.metrics
-    .verticalSpeed,
-  
-      angularSpeed:
-        telemetry.metrics
-          .angularSpeed,
-  
-      alignmentAngle:
-        telemetry.metrics
-          .alignmentAngle,
-  
-      horizontalOffset:
-        telemetry.metrics
-          .horizontalOffset,
-  
-      verticalOffset:
-        telemetry.metrics
-          .verticalOffset,
-  
-      lateralOffset:
-        telemetry.metrics
-          .lateralOffset,
-  
-      axialDistance:
-        telemetry.metrics
-          .axialDistance,
-  
-      distance:
-        telemetry.metrics.distance,
-  
-      timeToContact:
-        telemetry.metrics
-          .timeToContact,
-  
-      impactForce:
-        eventHandler
-          .getLastImpactForce(),
-          
-          damage:
-  spacecraft
-    .getDamageTelemetry(),
-          propellant:
-  spacecraft
-    .getPropellantTelemetry(),
-      checks: {
-        ...telemetry.metrics.checks,
-      },
-  
-      limits: {
-        maximumClosingSpeed:
-          rules.maximumClosingSpeed,
-
-        maximumLateralSpeed:
-          rules.maximumLateralSpeed,
-
-        maximumAngularSpeed:
-          rules.maximumAngularSpeed,
-
-        maximumAlignmentAngle:
-          THREE.MathUtils.radToDeg(
-            rules.maximumAlignmentAngle
-          ),
-
-        maximumLateralOffset:
-          rules.maximumLateralOffset,
-
-        maximumCaptureDistance:
-          rules.maximumCaptureDistance,
-
-        crashForce:
-          rules.crashForce,
-      },
-    };
+  function dispose() {
+    jointController.remove();
+    eventHandler.reset();
   }
 
   telemetry.updateMetrics();
@@ -452,5 +370,6 @@ verticalSpeed:
     reset,
     getState,
     getTelemetry,
+    dispose,
   };
 }

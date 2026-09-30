@@ -26,9 +26,6 @@ export function createSpacecraftColliderDebug(
       transparent: true,
       opacity: 0.8,
 
-      /*
-       * Draw colliders through the GLB model.
-       */
       depthTest: false,
       depthWrite: false,
     });

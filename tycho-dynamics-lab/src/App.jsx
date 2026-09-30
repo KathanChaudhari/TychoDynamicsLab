@@ -1,237 +1,87 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import BasicScene from "./BasicScene";
-
+import AudioControl from "./components/AudioControl";
+import ControlGuide from "./components/ControlGuide";
 import DockingHUD from "./components/DockingHUD";
 import DockingReticle from "./components/DockingReticle";
-import ControlGuide from "./components/ControlGuide";
 import LoadingScreen from "./components/LoadingScreen";
-
 import MissionBriefing from "./components/MissionBriefing";
-import MissionStatus from "./components/MissionStatus";
 import MissionResult from "./components/MissionResult";
+import MissionStatus from "./components/MissionStatus";
+import PerformancePanel from "./components/PerformancePanel";
 import {
-  useCallback,
-  useRef,
-} from "react";
-
-import AudioControl from "./components/AudioControl";
-const INITIAL_TELEMETRY = {
-  state: "approach",
-  insideSensor: false,
-
-  speed: 0,
-  closingSpeed: 0,
-  lateralSpeed: 0,
-
-  horizontalSpeed: 0,
-  verticalSpeed: 0,
-
-  angularSpeed: 0,
-  alignmentAngle: 0,
-
-  horizontalOffset: 0,
-  verticalOffset: 0,
-  lateralOffset: 0,
-
-  axialDistance: 7,
-  distance: 7,
-
-  timeToContact: null,
-  impactForce: 0,
-  crashReason: null,
-
-damage: {
-  integrity: 100,
-  maximumIntegrity: 100,
-  percentage: 100,
-  status: "nominal",
-  impactCount: 0,
-  lastDamage: 0,
-  lastImpactForce: 0,
-  maximumImpactForce: 0,
-  destroyed: false,
-},
-
-  checks: {
-    speed: true,
-    closingSpeed: true,
-    lateralSpeed: true,
-    angularSpeed: true,
-    alignment: true,
-    lateralOffset: true,
-    distance: false,
-  },
-
-  limits: {
-    maximumClosingSpeed: 0.25,
-    maximumLateralSpeed: 0.12,
-    maximumAngularSpeed: 0.15,
-    maximumAlignmentAngle: 7,
-    maximumLateralOffset: 0.35,
-    maximumCaptureDistance: 0.8,
-    crashForce: 5000,
-  },
-
-  propellant: {
-    capacity: 120,
-    remaining: 120,
-    percentage: 100,
-    flowRate: 0,
-    dryMass: 880,
-    estimatedMass: 1000,
-    status: "nominal",
-  },
-
-  mission: {
-    status: "briefing",
-    elapsedTime: 0,
-    score: 1000,
-    propellantUsed: 0,
-    maximumImpact: 0,
-    result: null,
-  },
-};
-
-const INITIAL_LOADING_STATE = {
-  status: "loading",
-  progress: 0,
-  message: "Preparing simulation",
-};
-
-
+  INITIAL_LOADING_STATE,
+  INITIAL_TELEMETRY,
+} from "./config/initialAppState.js";
+import { SIMULATION_CONFIG } from "./scene/config/SimulationConfig.js";
 
 export default function App() {
+  const audioControllerRef = useRef(null);
+  const [audioAvailable, setAudioAvailable] = useState(false);
+  const [audioMuted, setAudioMuted] = useState(false);
+  const [performance, setPerformance] = useState(null);
+  const [telemetry, setTelemetry] = useState(INITIAL_TELEMETRY);
+  const [loadingState, setLoadingState] = useState(INITIAL_LOADING_STATE);
+  const [selectedDifficulty, setSelectedDifficulty] = useState("standard");
 
-  const audioControllerRef =
-  useRef(null);
-
-const [
-  audioAvailable,
-  setAudioAvailable,
-] = useState(false);
-
-const [
-  audioMuted,
-  setAudioMuted,
-] = useState(false);
-
-const handleAudioReady =
-  useCallback((controller) => {
-    audioControllerRef.current =
-      controller;
-
-    setAudioAvailable(
-      Boolean(controller)
-    );
+  const handleAudioReady = useCallback((controller) => {
+    audioControllerRef.current = controller;
+    setAudioAvailable(Boolean(controller));
 
     if (controller) {
-      setAudioMuted(
-        controller.isMuted()
-      );
+      setAudioMuted(controller.isMuted());
     }
   }, []);
 
-function handleToggleAudio() {
-  const controller =
-    audioControllerRef.current;
+  const handleToggleAudio = useCallback(() => {
+    const controller = audioControllerRef.current;
 
-  if (!controller) {
-    return;
-  }
+    if (controller) {
+      setAudioMuted(controller.toggleMuted());
+    }
+  }, []);
 
-  const nextMuted =
-    controller.toggleMuted();
-
-  setAudioMuted(nextMuted);
-}
-
-  const [
-    telemetry,
-    setTelemetry,
-  ] = useState(
-    INITIAL_TELEMETRY
-  );
-
-  const [
-    loadingState,
-    setLoadingState,
-  ] = useState(
-    INITIAL_LOADING_STATE
-  );
-const [
-  selectedDifficulty,
-  setSelectedDifficulty,
-] = useState("standard");
-
-  const mission =
-    telemetry.mission;
-
-  const missionActive =
-    mission?.status === "active";
+  const mission = telemetry.mission;
+  const missionActive = mission?.status === "active";
 
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-slate-950">
-     <BasicScene
-  selectedDifficulty={
-    selectedDifficulty
-  }
-  onTelemetry={setTelemetry}
-  onLoadingState={
-    setLoadingState
-  }
-  onAudioReady={
-    handleAudioReady
-  }
-/>
-
-      <DockingHUD
-        telemetry={telemetry}
+      <BasicScene
+        selectedDifficulty={selectedDifficulty}
+        onTelemetry={setTelemetry}
+        onLoadingState={setLoadingState}
+        onAudioReady={handleAudioReady}
+        onPerformance={setPerformance}
       />
 
-      {missionActive && (
-        <DockingReticle
-          telemetry={telemetry}
-        />
-      )}
-
-      <MissionStatus
-        mission={mission}
-      />
-
+      <DockingHUD telemetry={telemetry} />
+      {missionActive && <DockingReticle telemetry={telemetry} />}
+      <MissionStatus mission={mission} />
       <ControlGuide />
 
-      {loadingState.status ===
-        "ready" && (
-          <MissionBriefing
-          mission={mission}
-          selectedDifficulty={
-            selectedDifficulty
-          }
-          onDifficultyChange={
-            setSelectedDifficulty
-          }
+      {loadingState.status === "ready" && (
+        <MissionBriefing
+          missionStatus={mission?.status}
+          selectedDifficulty={selectedDifficulty}
+          onDifficultyChange={setSelectedDifficulty}
         />
       )}
 
-      <MissionResult
-        mission={mission}
+      <MissionResult result={mission?.result} />
+      <LoadingScreen loadingState={loadingState} />
+      <PerformancePanel
+        performance={performance}
+        visible={SIMULATION_CONFIG.debug}
       />
 
-      <LoadingScreen
-        loadingState={loadingState}
-      />
-
-{loadingState.status ===
-  "ready" && (
-  <AudioControl
-    muted={audioMuted}
-    available={audioAvailable}
-    onToggle={
-      handleToggleAudio
-    }
-  />
-)}
+      {loadingState.status === "ready" && (
+        <AudioControl
+          muted={audioMuted}
+          available={audioAvailable}
+          onToggle={handleToggleAudio}
+        />
+      )}
     </main>
   );
 }

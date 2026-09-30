@@ -182,6 +182,10 @@ import {
         handle
       );
     }
+
+    function dispose() {
+      world.removeRigidBody(rigidBody);
+    }
   
     return {
       rigidBody,
@@ -194,5 +198,6 @@ import {
       sideModuleCollider,
   
       ownsSolidCollider,
+      dispose,
     };
   }

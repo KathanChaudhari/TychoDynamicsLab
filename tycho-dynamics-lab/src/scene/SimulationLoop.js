@@ -20,34 +20,64 @@ export function startSimulationLoop({
   cameraController,
   interactions,
   audioSystem,
+  performanceSystem,
   pressedKeys,
   onTelemetry,
 }) {
-  const clock =
-    new THREE.Clock();
+  const timer = new THREE.Timer();
+  timer.connect(document);
 
   let physicsAccumulator = 0;
 
   let telemetryAccumulator =
     TELEMETRY_INTERVAL;
 
-  function getCombinedTelemetry() {
-    return {
-      ...dockingSystem
-        .getTelemetry(),
+  let latestCombinedTelemetry = null;
 
+  let pageVisible =
+    !document.hidden;
+
+  function getCombinedTelemetry() {
+    if (latestCombinedTelemetry) {
+      return latestCombinedTelemetry;
+    }
+
+    return {
+      ...dockingSystem.getTelemetry(),
       mission:
         missionSystem
           .getTelemetry(),
     };
   }
 
+  function handleVisibilityChange() {
+    pageVisible =
+      !document.hidden;
+
+   
+    physicsAccumulator = 0;
+
+    performanceSystem?.reset();
+
+    timer.reset();
+  }
+
   function animate() {
+    timer.update();
+
     const frameTime =
       Math.min(
-        clock.getDelta(),
+        timer.getDelta(),
         MAX_FRAME_TIME
       );
+
+    if (!pageVisible) {
+      return;
+    }
+
+    performanceSystem?.beginFrame(
+      frameTime
+    );
 
     physicsAccumulator +=
       frameTime;
@@ -75,9 +105,10 @@ export function startSimulationLoop({
 
       dockingSystem
         .beforePhysicsStep();
-        spacecraft.updateDamage(
-          FIXED_TIME_STEP
-        );
+
+      spacecraft.updateDamage(
+        FIXED_TIME_STEP
+      );
 
       world.step(eventQueue);
 
@@ -93,19 +124,25 @@ export function startSimulationLoop({
 
       const dockingTelemetry =
         dockingSystem
-          .getTelemetry();
+          .getTelemetry({
+            refresh: false,
+          });
 
       missionSystem.update(
         FIXED_TIME_STEP,
         dockingTelemetry
       );
-      audioSystem.handleTelemetry({
+
+      latestCombinedTelemetry = {
         ...dockingTelemetry,
-      
         mission:
           missionSystem
             .getTelemetry(),
-      });
+      };
+
+      audioSystem.handleTelemetry(
+        latestCombinedTelemetry
+      );
 
       physicsAccumulator -=
         FIXED_TIME_STEP;
@@ -120,26 +157,18 @@ export function startSimulationLoop({
       .updateThrusterVisuals(
         frameTime
       );
-      audioSystem.updateThrusters(
-        spacecraft.controlState,
-      
-        missionSystem.canControl() &&
-          dockingSystem.canControl()
-      );
+
+    audioSystem.updateThrusters(
+      spacecraft.controlState,
+
+      missionSystem.canControl() &&
+        dockingSystem.canControl()
+    );
 
     probeSystem.syncVisuals();
 
-    /*
-     * Update selection helpers after the
-     * spacecraft visual transform is synced.
-     */
     interactions.update();
 
-    /*
-     * Camera must update after syncing the
-     * spacecraft so chase/docking views use
-     * the newest transform.
-     */
     cameraController.update(
       frameTime
     );
@@ -159,7 +188,16 @@ export function startSimulationLoop({
       scene,
       camera
     );
+
+   
+    performanceSystem
+      ?.afterRender();
   }
+
+  document.addEventListener(
+    "visibilitychange",
+    handleVisibilityChange
+  );
 
   renderer.setAnimationLoop(
     animate
@@ -174,7 +212,12 @@ export function startSimulationLoop({
         null
       );
 
-      clock.stop();
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+
+      timer.dispose();
     },
   };
 }

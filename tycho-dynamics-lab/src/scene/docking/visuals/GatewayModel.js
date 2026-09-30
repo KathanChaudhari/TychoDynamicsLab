@@ -1,34 +1,20 @@
 import * as THREE from "three";
 import { loadGLTFModel } from "../../loaders/loadGLTFModel";
+import { disposeObject3D } from "../../utils/disposeObject3D.js";
 
 
 
 const GATEWAY_MODEL_URL =
   "/models/gateway-core-optimized.glb";
 
-/*
- * The Gateway file may use a completely different
- * scale. We automatically resize its largest
- * dimension to this value.
- */
 const GATEWAY_TARGET_SIZE = 12;
 
-/*
- * The existing docking target is at the origin of
- * the station group.
- *
- * Move Gateway backward along -Z so the primitive
- * docking ring remains in front of it.
- */
 const GATEWAY_POSITION =
   new THREE.Vector3(
     0,
     0,
     -3.5
   );
-/*
- * Adjust these values if Gateway loads sideways.
- */
 const GATEWAY_ROTATION =
   new THREE.Euler(
     THREE.MathUtils.degToRad(-25),
@@ -45,10 +31,6 @@ function prepareModel(model) {
     object.castShadow = true;
     object.receiveShadow = true;
 
-    /*
-     * Keep all parts visible while initially
-     * testing this large model.
-     */
     object.frustumCulled = false;
   });
 }
@@ -86,9 +68,6 @@ function normalizeModelSize(model) {
 
   model.updateMatrixWorld(true);
 
-  /*
-   * Calculate its center after applying scale.
-   */
   const scaledBox =
     new THREE.Box3().setFromObject(
       model
@@ -99,14 +78,8 @@ function normalizeModelSize(model) {
       new THREE.Vector3()
     );
 
-  /*
-   * Center Gateway around modelRoot.
-   */
   model.position.sub(center);
 
-  /*
-   * Then move it behind the existing docking ring.
-   */
   model.position.add(
     GATEWAY_POSITION
   );
@@ -131,63 +104,6 @@ function normalizeModelSize(model) {
       z: finalSize.z,
     }
   );
-}
-
-function disposeObject(root) {
-  const geometries = new Set();
-  const materials = new Set();
-  const textures = new Set();
-
-  root.traverse((object) => {
-    if (!object.isMesh) {
-      return;
-    }
-
-    if (
-      object.geometry &&
-      !geometries.has(
-        object.geometry
-      )
-    ) {
-      object.geometry.dispose();
-
-      geometries.add(
-        object.geometry
-      );
-    }
-
-    const objectMaterials =
-      Array.isArray(object.material)
-        ? object.material
-        : [object.material];
-
-    objectMaterials.forEach(
-      (material) => {
-        if (
-          !material ||
-          materials.has(material)
-        ) {
-          return;
-        }
-
-        for (
-          const value of
-          Object.values(material)
-        ) {
-          if (
-            value?.isTexture &&
-            !textures.has(value)
-          ) {
-            value.dispose();
-            textures.add(value);
-          }
-        }
-
-        material.dispose();
-        materials.add(material);
-      }
-    );
-  });
 }
 
 export function createGatewayModel({
@@ -252,7 +168,7 @@ stationGroup.add(
   )
     .then((gltf) => {
       if (disposed) {
-        disposeObject(gltf.scene);
+        disposeObject3D(gltf.scene);
         return null;
       }
 
@@ -303,7 +219,7 @@ stationGroup.add(
         gatewayModel
       );
 
-      disposeObject(
+      disposeObject3D(
         gatewayModel
       );
 

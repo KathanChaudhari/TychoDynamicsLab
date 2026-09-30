@@ -42,22 +42,3 @@ export const CAPTURE_SETTINGS =
     rotationDamping: 650,
     maximumTorque: 1500,
   });
-
-/*
- * These can remain temporarily if an older file
- * still imports them.
- */
-export const SPACECRAFT_DOCKING_POINT =
-  Object.freeze({
-    x: 0,
-    y: 0,
-    z: -1.9,
-  });
-
-export const IDENTITY_ROTATION =
-  Object.freeze({
-    x: 0,
-    y: 0,
-    z: 0,
-    w: 1,
-  });

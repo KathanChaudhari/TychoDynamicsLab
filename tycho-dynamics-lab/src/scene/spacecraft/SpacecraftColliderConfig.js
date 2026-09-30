@@ -30,13 +30,6 @@ export const SPACECRAFT_COLLIDERS =
         z: -0.9,
       }),
 
-      /*
-       * Three.js and Rapier cones point along
-       * their local Y axis by default.
-       *
-       * Rotate -90 degrees around X so the
-       * capsule points toward local -Z.
-       */
       rotationX: -Math.PI / 2,
 
       mass: 400,

@@ -84,8 +84,6 @@ export function createProbeTrajectory(
     }
 
     positionAttribute.needsUpdate = true;
-
-    geometry.computeBoundingSphere();
   }
 
   function toggle() {

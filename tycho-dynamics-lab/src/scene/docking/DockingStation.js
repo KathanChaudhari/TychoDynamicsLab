@@ -98,12 +98,6 @@ export function createDockingStation(
       color: 0xff00ff,
     });
 
-  /*
-   * Temporary docking guide.
-   *
-   * This remains visual only. It no longer
-   * creates the station's physics colliders.
-   */
   const guideGroup =
     new THREE.Group();
 
@@ -260,19 +254,12 @@ export function createDockingStation(
 
   group.add(dockingLight);
 
-  /*
-   * Actual Rapier physics.
-   */
   const physics =
     createGatewayPhysics({
       world,
       RAPIER,
     });
 
-  /*
-   * Three.js wireframes representing the
-   * Rapier colliders and sensor.
-   */
   const colliderDebug =
     createGatewayColliderDebug(
       group
@@ -344,6 +331,7 @@ export function createDockingStation(
     );
 
     frameMaterial.dispose();
+    physics.dispose();
   }
 
   setStatus("approach");
@@ -359,10 +347,6 @@ export function createDockingStation(
     rigidBody:
       physics.rigidBody,
 
-    /*
-     * DockingEventHandler currently expects
-     * station.frameColliders.
-     */
     frameColliders:
       physics.solidColliders,
 

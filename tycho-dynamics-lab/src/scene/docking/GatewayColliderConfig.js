@@ -85,10 +85,6 @@ export const GATEWAY_SENSOR =
       z: 0.75,
     }),
 
-    /*
-     * The sensor is in front of the docking
-     * port, toward the approaching Orion.
-     */
     position: Object.freeze({
       x: 0,
       y: 0,

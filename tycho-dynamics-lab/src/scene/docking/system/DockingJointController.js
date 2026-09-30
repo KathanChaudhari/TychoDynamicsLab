@@ -43,14 +43,6 @@ export function createDockingJointController({
       return;
     }
 
-    /*
-     * Joint anchors must be expressed in the
-     * local coordinate system of each rigid body.
-     *
-     * Both docking-port objects are direct children
-     * of their corresponding physics groups, so
-     * their local positions can be used directly.
-     */
     const stationAnchor =
       getAnchorPosition(
         station.dockingPort
@@ -76,17 +68,8 @@ export function createDockingJointController({
 
     const jointData =
       RAPIER.JointData.fixed(
-        /*
-         * Anchor and frame on the first body:
-         * Gateway/station.
-         */
         stationAnchor,
         stationFrameRotation,
-
-        /*
-         * Anchor and frame on the second body:
-         * Orion.
-         */
         spacecraftAnchor,
         spacecraftFrameRotation
       );

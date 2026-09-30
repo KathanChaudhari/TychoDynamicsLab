@@ -41,12 +41,23 @@ export function loadGLTFModel(
             100;
 
           onProgress?.(
-            Math.round(progress)
+            Math.round(
+              Math.min(
+                Math.max(progress, 0),
+                100
+              )
+            )
           );
         },
 
         (error) => {
-          reject(error);
+          reject(
+            error instanceof Error
+              ? error
+              : new Error(
+                  `Failed to load ${url}`
+                )
+          );
         }
       );
     }

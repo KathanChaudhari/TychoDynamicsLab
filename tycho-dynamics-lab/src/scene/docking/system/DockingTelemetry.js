@@ -279,10 +279,7 @@ export function createDockingTelemetry({
         stationApproachDirection
       );
 
-    /*
-     * Convert velocity from world coordinates
-     * into Gateway docking-port coordinates.
-     */
+ 
     stationLocalVelocity
       .copy(linearVelocity)
       .applyQuaternion(

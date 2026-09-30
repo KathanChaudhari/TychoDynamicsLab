@@ -1,73 +1,13 @@
-import {
-  useEffect,
-  useRef,
-} from "react";
-
+import { useEffect, useRef } from "react";
 import RAPIER from "@dimforge/rapier3d-compat";
 
-import {
-  createSceneEnvironment,
-} from "./scene/SceneEnvironment.js";
-
-import {
-  createInteractionController,
-} from "./scene/InteractionController.js";
-
-import {
-  startSimulationLoop,
-} from "./scene/SimulationLoop.js";
-
-import {
-  createPhysicsEventRouter,
-} from "./scene/PhysicsEventRouter.js";
-
-import {
-  createSpacecraft,
-} from "./scene/spacecraft/Spacecraft.js";
-
-import {
-  createDockingStation,
-} from "./scene/docking/DockingStation.js";
-
-import {
-  createDockingSystem,
-} from "./scene/docking/DockingSystem.js";
-
-import {
-  createTargetField,
-} from "./scene/projectiles/TargetField.js";
-
-import {
-  createProbeSystem,
-} from "./scene/projectiles/ProbeSystem.js";
-
-import {
-  createGatewayModel,
-} from "./scene/docking/visuals/GatewayModel.js";
-
-import {
-  createMissionSystem,
-} from "./scene/mission/MissionSystem.js";
-
-import {
-  createCameraController,
-} from "./scene/camera/CameraController.js";
-
-import {
-  getDifficultyPreset,
-} from "./scene/mission/DifficultyConfig.js";
-
-import {
-  createAudioSystem,
-} from "./scene/audio/AudioSystem.js";
-
+import { createSimulationSession } from "./scene/createSimulationSession.js";
 
 let rapierInitializationPromise = null;
 
 function initializeRapier() {
   if (!rapierInitializationPromise) {
-    rapierInitializationPromise =
-      RAPIER.init();
+    rapierInitializationPromise = RAPIER.init();
   }
 
   return rapierInitializationPromise;
@@ -78,621 +18,76 @@ export default function BasicScene({
   onTelemetry,
   onLoadingState,
   onAudioReady,
+  onPerformance,
 }) {
-  const containerRef =
-    useRef(null);
+  const containerRef = useRef(null);
+  const difficultyRef = useRef(selectedDifficulty);
+  const callbacksRef = useRef({});
 
-    const difficultyRef =
-    useRef(selectedDifficulty);
-
-  
   useEffect(() => {
-    const container =
-      containerRef.current;
-      difficultyRef.current =
-      selectedDifficulty;
+    difficultyRef.current = selectedDifficulty;
+  }, [selectedDifficulty]);
+
+  useEffect(() => {
+    callbacksRef.current = {
+      onTelemetry,
+      onLoadingState,
+      onAudioReady,
+      onPerformance,
+    };
+  }, [onTelemetry, onLoadingState, onAudioReady, onPerformance]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+
     if (!container) {
       return undefined;
     }
 
     let cancelled = false;
-    let cleanupScene = null;
+    let disposeSession = null;
 
-    function setLoadingState(
-      status,
-      progress,
-      message
-    ) {
-      if (cancelled) {
-        return;
-      }
+    callbacksRef.current.onLoadingState?.({
+      status: "loading",
+      progress: 5,
+      message: "Initializing physics",
+    });
 
-      onLoadingState?.({
-        status,
-        progress,
-        message,
-      });
-    }
-
-    async function initialize() {
-      setLoadingState(
-        "loading",
-        5,
-        "Initializing physics"
-      );
-
-      await initializeRapier();
-
-      if (cancelled) {
-        return;
-      }
-
-      setLoadingState(
-        "loading",
-        10,
-        "Building scene"
-      );
-
-      // ========================================
-      // Three.js environment
-      // ========================================
-
-      const environment =
-        createSceneEnvironment(
-          container
-        );
-
-        const audioSystem =
-  createAudioSystem();
-
-onAudioReady?.({
-  toggleMuted:
-    audioSystem.toggleMuted,
-
-  setMuted:
-    audioSystem.setMuted,
-
-  isMuted:
-    audioSystem.isMuted,
-});
-
-      const {
-        scene,
-        camera,
-        renderer,
-        controls,
-      } = environment;
-
-      // ========================================
-      // Rapier world and events
-      // ========================================
-
-      const world =
-        new RAPIER.World({
-          x: 0,
-          y: 0,
-          z: 0,
-        });
-
-      const eventQueue =
-        new RAPIER.EventQueue(true);
-
-      const physicsEvents =
-        createPhysicsEventRouter(
-          eventQueue
-        );
-
-      // ========================================
-      // Orion spacecraft
-      // ========================================
-
-      const initialDifficulty =
-      getDifficultyPreset(
-        difficultyRef.current
-      );
-
-    const spacecraft =
-  createSpacecraft(
-    scene,
-    world,
-    RAPIER,
-    {
-      difficulty:
-        initialDifficulty,
-            onLoadingChange(state) {
-              if (
-                state.status ===
-                "loading"
-              ) {
-                const modelProgress =
-                  state.progress ?? 0;
-
-                const mappedProgress =
-                  10 +
-                  modelProgress * 0.75;
-
-                setLoadingState(
-                  "loading",
-                  Math.round(
-                    mappedProgress
-                  ),
-                  `Loading ${state.asset}`
-                );
-              }
-
-              if (
-                state.status ===
-                "ready"
-              ) {
-                setLoadingState(
-                  "loading",
-                  88,
-                  "Preparing simulation"
-                );
-              }
-
-              if (
-                state.status ===
-                "error"
-              ) {
-                console.warn(
-                  "Orion loading failed:",
-                  state.error
-                );
-
-                setLoadingState(
-                  "loading",
-                  88,
-                  "Using fallback spacecraft"
-                );
-              }
-            },
-          }
-        );
-
-      // ========================================
-      // Gateway station physics
-      // ========================================
-
-      
-      const station =
-        createDockingStation(
-          scene,
-          world,
-          RAPIER
-        );
-
-        const cameraController =
-  createCameraController({
-    camera,
-    controls,
-    spacecraft,
-    station,
-  });
-
-      // ========================================
-      // Gateway GLB model
-      // ========================================
-
-      const gateway =
-        createGatewayModel({
-          stationGroup:
-            station.group,
-
-          onLoadingChange(state) {
-            if (
-              state.status ===
-              "loading"
-            ) {
-              const progress =
-                state.progress ?? 0;
-
-              const mappedProgress =
-                35 +
-                progress * 0.55;
-
-              setLoadingState(
-                "loading",
-                Math.round(
-                  mappedProgress
-                ),
-                "Loading Gateway core"
-              );
-            }
-
-            if (
-              state.status ===
-              "ready"
-            ) {
-              setLoadingState(
-                "loading",
-                92,
-                "Preparing docking systems"
-              );
-            }
-
-            if (
-              state.status ===
-              "error"
-            ) {
-              console.warn(
-                "Gateway loading failed:",
-                state.error
-              );
-
-              setLoadingState(
-                "loading",
-                92,
-                "Using primitive station"
-              );
-            }
-          },
-        });
-
-      // ========================================
-      // Projectile target field
-      // ========================================
-
-      const targetField =
-        createTargetField({
-          scene,
-          world,
-          RAPIER,
-        });
-
-      // ========================================
-      // Docking system
-      // ========================================
-
-      const dockingSystem =
-      createDockingSystem({
-        world,
-        RAPIER,
-        spacecraft,
-        station,
-    
-        difficulty:
-          initialDifficulty,
-      });
-
-      // ========================================
-      // Mission lifecycle
-      // ========================================
-
-      const missionSystem =
-      createMissionSystem({
-        difficulty:
-          initialDifficulty,
-      });
-      /*
-       * Prevent Enter from starting the mission
-       * while models are still loading.
-       */
-      let missionReady = false;
-
-      // ========================================
-      // Probe system
-      // ========================================
-
-      const probeSystem =
-        createProbeSystem({
-          scene,
-          world,
-          RAPIER,
-          spacecraft,
-          station,
-          targetField,
-        });
-
-      // ========================================
-      // Combined React telemetry
-      // ========================================
-
-      function getCombinedTelemetry() {
-        return {
-          ...dockingSystem
-            .getTelemetry(),
-
-          mission:
-            missionSystem
-              .getTelemetry(),
-        };
-      }
-
-      function publishTelemetry() {
+    initializeRapier()
+      .then(() => {
         if (cancelled) {
           return;
         }
 
-        onTelemetry?.(
-          getCombinedTelemetry()
-        );
-      }
-
-      // ========================================
-      // Physics event listeners
-      // ========================================
-
-      const removeDockingListener =
-        physicsEvents.addListener(
-          dockingSystem
-        );
-
-      const removeProbeListener =
-        physicsEvents.addListener(
-          probeSystem
-        );
-
-      // ========================================
-      // Keyboard and pointer interactions
-      // ========================================
-
-      const interactions =
-        createInteractionController({
-          scene,
-          camera,
-          renderer,
-          controls,
-          spacecraft,
-          station,
-          cameraController,
-
-          onStartMission() {
-            if (!missionReady) {
-              return;
-            }
-          
-            const missionTelemetry =
-              missionSystem.getTelemetry();
-          
-            if (
-              missionTelemetry.status !==
-              "briefing"
-            ) {
-              return;
-            }
-          
-            audioSystem.unlock();
-            const difficulty =
-              getDifficultyPreset(
-                difficultyRef.current
-              );
-          
-            spacecraft.configureDifficulty(
-              difficulty
-            );
-          
-            dockingSystem.setDifficulty(
-              difficulty
-            );
-          
-            missionSystem.setDifficulty(
-              difficulty
-            );
-          
-            dockingSystem.reset();
-            spacecraft.reset();
-          
-            const propellant =
-              spacecraft
-                .getPropellantTelemetry();
-          
-            missionSystem.reset(
-              propellant.remaining
-            );
-          
-            missionSystem.start(
-              propellant.remaining
-            );
-          
-            cameraController.setMode(
-              "overview"
-            );
-          
-            publishTelemetry();
-          },
-
-          onReset() {
-            dockingSystem.reset();
-            spacecraft.reset();
-          
-            const propellant =
-              spacecraft
-                .getPropellantTelemetry();
-          
-            missionSystem.reset(
-              propellant.remaining
-            );
-          
-            cameraController.setMode(
-              "overview"
-            );
-          
-            publishTelemetry();
-          },
-
-          onUndock() {
-            /*
-             * Only allow manual undocking while
-             * the mission is active.
-             */
-            if (
-              !missionSystem
-                .canControl()
-            ) {
-              return;
-            }
-
-            dockingSystem.undock();
-            publishTelemetry();
-          },
-
-          onLaunchProbe() {
-            if (
-              !missionSystem
-                .canControl()
-            ) {
-              return;
-            }
-
-            probeSystem.launch();
-          },
-
-          onToggleTrajectory() {
-            probeSystem
-              .toggleTrajectory();
-          },
+        disposeSession = createSimulationSession({
+          container,
+          RAPIER,
+          getDifficulty: () => difficultyRef.current,
+          isCancelled: () => cancelled,
+          onTelemetry: (value) => callbacksRef.current.onTelemetry?.(value),
+          onLoadingState: (value) => callbacksRef.current.onLoadingState?.(value),
+          onAudioReady: (value) => callbacksRef.current.onAudioReady?.(value),
+          onPerformance: (value) => callbacksRef.current.onPerformance?.(value),
         });
-
-      // ========================================
-      // Main render and physics loop
-      // ========================================
-
-      const simulation =
-      startSimulationLoop({
-        renderer,
-        scene,
-        camera,
-        world,
-        eventQueue,
-        physicsEvents,
-        spacecraft,
-        dockingSystem,
-        missionSystem,
-        probeSystem,
-        cameraController,
-        interactions,
-        audioSystem,
-    
-        pressedKeys:
-          interactions.pressedKeys,
-    
-        onTelemetry,
-      });
-
-      /*
-       * Initial telemetry shows the mission
-       * briefing state.
-       */
-      publishTelemetry();
-
-      // ========================================
-      // Wait for both GLB models
-      // ========================================
-
-      Promise.all([
-        spacecraft.modelReady,
-        gateway.ready,
-      ]).then(
-        ([
-          loadedSpacecraft,
-          loadedGateway,
-        ]) => {
-          if (cancelled) {
-            return;
-          }
-
-          missionReady = true;
-
-          let message =
-            "Simulation ready";
-
-          if (
-            !loadedSpacecraft &&
-            !loadedGateway
-          ) {
-            message =
-              "Using primitive models";
-          } else if (
-            !loadedSpacecraft
-          ) {
-            message =
-              "Using primitive spacecraft";
-          } else if (
-            !loadedGateway
-          ) {
-            message =
-              "Using primitive station";
-          }
-
-          setLoadingState(
-            "ready",
-            100,
-            message
-          );
-
-          /*
-           * Publish again so React immediately
-           * receives the briefing state when the
-           * loading screen disappears.
-           */
-          publishTelemetry();
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
         }
-      );
 
-      // ========================================
-      // Cleanup
-      // ========================================
-
-      cleanupScene = () => {
-        simulation.stop();
-        interactions.dispose();
-
-        removeDockingListener();
-        removeProbeListener();
-
-        physicsEvents.clear();
-
-        probeSystem.dispose();
-        targetField.dispose();
-
-        /*
-         * Gateway is a child of station.group,
-         * so dispose it before the station.
-         */
-        gateway.dispose();
-        station.dispose();
-        spacecraft.dispose();
-
-        eventQueue.free();
-        world.free();
-
-        audioSystem.dispose();
-onAudioReady?.(null);
-        environment.dispose();
-        cameraController.dispose();
-      };
-    }
-
-    initialize().catch(
-      (error) => {
-        console.error(
-          "Simulation initialization failed:",
-          error
-        );
-
-        setLoadingState(
-          "error",
-          0,
-          "Could not start simulation"
-        );
-      }
-    );
+        console.error("Simulation initialization failed:", error);
+        callbacksRef.current.onLoadingState?.({
+          status: "error",
+          progress: 0,
+          message: "Could not start simulation",
+        });
+      });
 
     return () => {
       cancelled = true;
-      cleanupScene?.();
+      disposeSession?.();
     };
-  }, [
-    onTelemetry,
-    onLoadingState,
-    onAudioReady,
-  ]);
+  }, []);
 
-  return (
-    <div
-      ref={containerRef}
-      className="h-full w-full"
-    />
-  );
+  return <div ref={containerRef} className="h-full w-full" />;
 }

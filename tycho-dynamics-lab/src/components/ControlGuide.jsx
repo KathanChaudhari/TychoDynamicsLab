@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 const controls = [
   ["W / S", "Forward / backward"],
   ["A / D", "Left / right"],
@@ -14,7 +16,7 @@ const controls = [
   ["1 / 2 / 3 / 4", "Camera modes"],
 ];
 
-export default function ControlGuide() {
+function ControlGuide() {
   return (
     <aside className="pointer-events-none absolute bottom-4 right-4 hidden w-[250px] rounded-xl border border-white/10 bg-slate-950/70 p-4 backdrop-blur-md md:block">
       <p className="mb-3 text-[10px] tracking-[0.3em] text-sky-400">
@@ -42,3 +44,5 @@ export default function ControlGuide() {
     </aside>
   );
 }
+
+export default memo(ControlGuide);

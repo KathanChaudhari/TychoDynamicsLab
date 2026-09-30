@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { disposeObject3D } from "./utils/disposeObject3D.js";
 
 export function createSceneEnvironment(container) {
   const width = Math.max(
@@ -31,11 +32,13 @@ export function createSceneEnvironment(container) {
     antialias: true,
   });
 
-  renderer.setSize(width, height);
-
-  renderer.setPixelRatio(
-    Math.min(window.devicePixelRatio, 2)
+  let pixelRatio = Math.min(
+    window.devicePixelRatio || 1,
+    2
   );
+
+  renderer.setSize(width, height);
+  renderer.setPixelRatio(pixelRatio);
 
   renderer.outputColorSpace =
     THREE.SRGBColorSpace;
@@ -98,7 +101,9 @@ export function createSceneEnvironment(container) {
   );
 
 
-  function handleResize() {
+  function resizeRenderer(nextPixelRatio = pixelRatio) {
+    pixelRatio = nextPixelRatio;
+
     const nextWidth =
       container.clientWidth;
 
@@ -121,13 +126,11 @@ export function createSceneEnvironment(container) {
       nextWidth,
       nextHeight
     );
+    renderer.setPixelRatio(pixelRatio);
+  }
 
-    renderer.setPixelRatio(
-      Math.min(
-        window.devicePixelRatio,
-        2
-      )
-    );
+  function handleResize() {
+    resizeRenderer();
   }
 
   window.addEventListener(
@@ -145,35 +148,7 @@ export function createSceneEnvironment(container) {
 
     controls.dispose();
 
-    const geometries = new Set();
-    const materials = new Set();
-
-    scene.traverse((object) => {
-      if (object.geometry) {
-        geometries.add(object.geometry);
-      }
-
-      if (object.material) {
-        const objectMaterials =
-          Array.isArray(object.material)
-            ? object.material
-            : [object.material];
-
-        objectMaterials.forEach(
-          (material) => {
-            materials.add(material);
-          }
-        );
-      }
-    });
-
-    geometries.forEach((geometry) => {
-      geometry.dispose();
-    });
-
-    materials.forEach((material) => {
-      material.dispose();
-    });
+    disposeObject3D(scene);
 
     renderer.dispose();
 
@@ -192,6 +167,7 @@ export function createSceneEnvironment(container) {
     camera,
     renderer,
     controls,
+    resizeRenderer,
     dispose,
   };
 }

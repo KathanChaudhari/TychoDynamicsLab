@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 function ResultMetric({
     label,
     value,
@@ -15,12 +17,9 @@ function ResultMetric({
     );
   }
   
-  export default function MissionResult({
-    mission,
+  function MissionResult({
+    result,
   }) {
-    const result =
-      mission?.result;
-  
     if (!result) {
       return null;
     }
@@ -137,3 +136,5 @@ function ResultMetric({
       </section>
     );
   }
+
+export default memo(MissionResult);
