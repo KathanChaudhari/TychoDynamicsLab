@@ -1,5 +1,7 @@
 import { memo } from "react";
 
+import CollapsiblePanel from "./CollapsiblePanel.jsx";
+
 const controls = [
   ["W / S", "Forward / backward"],
   ["A / D", "Left / right"],
@@ -18,30 +20,26 @@ const controls = [
 
 function ControlGuide() {
   return (
-    <aside className="pointer-events-none absolute bottom-4 right-4 hidden w-[250px] rounded-xl border border-white/10 bg-slate-950/70 p-4 backdrop-blur-md md:block">
-      <p className="mb-3 text-[10px] tracking-[0.3em] text-sky-400">
-        FLIGHT CONTROLS
-      </p>
-
-      <div className="space-y-2">
-        {controls.map(
-          ([key, description]) => (
-            <div
-              key={key}
-              className="flex items-center justify-between gap-4"
-            >
-              <kbd className="rounded border border-white/10 bg-white/5 px-2 py-1 font-mono text-[10px] text-slate-200">
-                {key}
-              </kbd>
-
-              <span className="text-right text-xs text-slate-400">
-                {description}
-              </span>
-            </div>
-          )
-        )}
+    <CollapsiblePanel
+      title="FLIGHT CONTROLS"
+      summary={
+        <span className="text-[10px] text-slate-400">
+          WASD/RF Move · Arrows/QE Rotate · T Reset
+        </span>
+      }
+      className="absolute bottom-2 right-2 z-30 w-[calc(100vw-1rem)] max-w-[280px] md:bottom-4 md:right-4"
+    >
+      <div className="max-h-[60vh] space-y-2 overflow-y-auto p-4">
+        {controls.map(([key, description]) => (
+          <div key={key} className="flex items-center justify-between gap-4">
+            <kbd className="rounded border border-white/10 bg-white/5 px-2 py-1 font-mono text-[10px] text-slate-200">
+              {key}
+            </kbd>
+            <span className="text-right text-xs text-slate-400">{description}</span>
+          </div>
+        ))}
       </div>
-    </aside>
+    </CollapsiblePanel>
   );
 }
 

@@ -1,4 +1,6 @@
-import { getDifficultyPreset } from "./mission/DifficultyConfig.js";
+import {
+  getDifficultyPreset,
+} from "./mission/DifficultyConfig.js";
 
 export function createMissionActions({
   getDifficulty,
@@ -11,62 +13,124 @@ export function createMissionActions({
   publishTelemetry,
   isMissionReady,
 }) {
-  function resetMission(publish = true) {
+  function restartMission(
+    difficultyId =
+      getDifficulty()
+  ) {
+    const difficulty =
+      getDifficultyPreset(
+        difficultyId
+      );
+
+    spacecraft.configureDifficulty(
+      difficulty
+    );
+
+    dockingSystem.setDifficulty(
+      difficulty
+    );
+
     dockingSystem.reset();
     spacecraft.reset();
 
-    const { remaining } = spacecraft.getPropellantTelemetry();
-    missionSystem.reset(remaining);
-    cameraController.setMode("overview");
-    if (publish) {
-      publishTelemetry();
-    }
+    const { remaining } =
+      spacecraft
+        .getPropellantTelemetry();
+
+    missionSystem.reset(
+      remaining
+    );
+
+    missionSystem.setDifficulty(
+      difficulty
+    );
+
+    missionSystem.start(
+      remaining
+    );
+
+    cameraController.setMode(
+      "overview"
+    );
+
+    publishTelemetry();
+  }
+
+  function canRestartMission() {
+    return isMissionReady();
   }
 
   return {
     onStartMission() {
       if (
-        !isMissionReady() ||
-        missionSystem.getTelemetry().status !== "briefing"
+        !canRestartMission() ||
+        missionSystem
+          .getTelemetry()
+          .status !== "briefing"
       ) {
-        return;
+        return false;
       }
 
       audioSystem.unlock();
+      restartMission();
 
-      const difficulty = getDifficultyPreset(getDifficulty());
-      spacecraft.configureDifficulty(difficulty);
-      dockingSystem.setDifficulty(difficulty);
-      missionSystem.setDifficulty(difficulty);
-
-      resetMission(false);
-
-      const { remaining } = spacecraft.getPropellantTelemetry();
-      missionSystem.start(remaining);
-      publishTelemetry();
+      return true;
     },
 
     onReset() {
-      resetMission();
+      if (!canRestartMission()) {
+        return false;
+      }
+
+      restartMission();
+
+      return true;
+    },
+
+    onDifficultyChange(
+      difficultyId
+    ) {
+      if (!canRestartMission()) {
+        return false;
+      }
+
+      restartMission(
+        difficultyId
+      );
+
+      return true;
     },
 
     onUndock() {
-      if (!missionSystem.canControl()) {
-        return;
+      if (
+        !missionSystem.canControl()
+      ) {
+        return false;
       }
 
       dockingSystem.undock();
       publishTelemetry();
+
+      return true;
     },
 
     onLaunchProbe() {
-      if (missionSystem.canControl()) {
-        probeSystem.launch();
+      if (
+        !missionSystem.canControl()
+      ) {
+        return false;
       }
+
+      probeSystem.launch();
+
+      return true;
     },
 
     onToggleTrajectory() {
-      probeSystem.toggleTrajectory();
+      probeSystem
+        .toggleTrajectory();
+
+      return true;
     },
   };
 }

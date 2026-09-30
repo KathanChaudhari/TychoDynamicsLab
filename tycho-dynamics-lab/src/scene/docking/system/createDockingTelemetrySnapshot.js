@@ -16,8 +16,8 @@ export function createDockingTelemetrySnapshot({
     insideSensor,
     crashReason,
     difficulty: {
-      id: difficulty?.id ?? "standard",
-      label: difficulty?.label ?? "Standard",
+      id: difficulty?.id ?? "normal",
+      label: difficulty?.label ?? "Normal",
     },
     speed: metrics.speed,
     closingSpeed: metrics.closingSpeed,

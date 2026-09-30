@@ -13,7 +13,7 @@ export function createMissionSystem({
   let activeDifficulty =
     difficulty ??
     getDifficultyPreset(
-      "standard"
+      "normal"
     );
 
   let status =
