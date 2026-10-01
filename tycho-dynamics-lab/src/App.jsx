@@ -6,6 +6,7 @@ import {
 
 import BasicScene from "./BasicScene";
 
+import AssetWarning from "./components/AssetWarning";
 import AudioControl from "./components/AudioControl";
 import ControlGuide from "./components/ControlGuide";
 import DifficultySelector from "./components/DifficultySelector";
@@ -16,6 +17,12 @@ import MissionBriefing from "./components/MissionBriefing";
 import MissionResult from "./components/MissionResult";
 import MissionStatus from "./components/MissionStatus";
 import PerformancePanel from "./components/PerformancePanel";
+
+import ErrorFallback from "./errors/ErrorFallback.jsx";
+
+import {
+  getWebGLSupport,
+} from "./errors/WebGLSupport.js";
 
 import {
   INITIAL_LOADING_STATE,
@@ -66,6 +73,27 @@ export default function App() {
     selectedDifficulty,
     setSelectedDifficulty,
   ] = useState("normal");
+
+  const [
+    simulationKey,
+    setSimulationKey,
+  ] = useState(0);
+
+  const [
+    fatalError,
+    setFatalError,
+  ] = useState(null);
+
+  const [
+    assetWarnings,
+    setAssetWarnings,
+  ] = useState([]);
+
+  const [
+    webGLSupport,
+  ] = useState(
+    () => getWebGLSupport()
+  );
 
   const mission =
     telemetry.mission;
@@ -123,11 +151,6 @@ export default function App() {
           difficultyId
         );
 
-        /*
-         * On the initial briefing, only update
-         * the selected difficulty. The user
-         * starts it with Enter or the button.
-         */
         if (
           mission?.status ===
           "briefing"
@@ -135,10 +158,6 @@ export default function App() {
           return;
         }
 
-        /*
-         * Pass the ID directly because React
-         * state has not updated yet.
-         */
         missionControllerRef.current
           ?.changeDifficulty(
             difficultyId
@@ -147,9 +166,112 @@ export default function App() {
       [mission?.status]
     );
 
+  const handleFatalError =
+    useCallback((error) => {
+      const normalizedError =
+        error instanceof Error
+          ? error
+          : new Error(
+              String(error)
+            );
+
+      console.error(
+        "Fatal simulation error:",
+        normalizedError
+      );
+
+      setFatalError(
+        normalizedError
+      );
+    }, []);
+
+  const handleAssetWarning =
+    useCallback((warning) => {
+      setAssetWarnings(
+        (currentWarnings) => {
+          const remainingWarnings =
+            currentWarnings.filter(
+              (currentWarning) =>
+                currentWarning.id !==
+                warning.id
+            );
+
+          return [
+            ...remainingWarnings,
+            warning,
+          ];
+        }
+      );
+    }, []);
+
+  const handleDismissWarning =
+    useCallback((warningId) => {
+      setAssetWarnings(
+        (currentWarnings) =>
+          currentWarnings.filter(
+            (warning) =>
+              warning.id !==
+              warningId
+          )
+      );
+    }, []);
+
+  const handleRetrySimulation =
+    useCallback(() => {
+      audioControllerRef.current =
+        null;
+
+      missionControllerRef.current =
+        null;
+
+      setAudioAvailable(false);
+      setAudioMuted(false);
+      setFatalError(null);
+      setAssetWarnings([]);
+      setPerformance(null);
+
+      setTelemetry({
+        ...INITIAL_TELEMETRY,
+      });
+
+      setLoadingState({
+        ...INITIAL_LOADING_STATE,
+      });
+
+      setSimulationKey(
+        (currentKey) =>
+          currentKey + 1
+      );
+    }, []);
+
+  if (!webGLSupport.supported) {
+    return (
+      <ErrorFallback
+        title="WebGL is unavailable"
+        message={
+          webGLSupport.reason
+        }
+      />
+    );
+  }
+
+  if (fatalError) {
+    return (
+      <ErrorFallback
+        title="Simulation stopped"
+        message="The graphics or physics system could not continue safely."
+        error={fatalError}
+        onRetry={
+          handleRetrySimulation
+        }
+      />
+    );
+  }
+
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-slate-950">
       <BasicScene
+        key={simulationKey}
         selectedDifficulty={
           selectedDifficulty
         }
@@ -167,6 +289,12 @@ export default function App() {
         }
         onPerformance={
           setPerformance
+        }
+        onAssetWarning={
+          handleAssetWarning
+        }
+        onFatalError={
+          handleFatalError
         }
       />
 
@@ -228,6 +356,9 @@ export default function App() {
         loadingState={
           loadingState
         }
+        onRetry={
+          handleRetrySimulation
+        }
       />
 
       <PerformancePanel
@@ -236,6 +367,15 @@ export default function App() {
         }
         visible={
           SIMULATION_CONFIG.debug
+        }
+      />
+
+      <AssetWarning
+        warnings={
+          assetWarnings
+        }
+        onDismiss={
+          handleDismissWarning
         }
       />
 

@@ -3,19 +3,39 @@ import {
   useRef,
 } from "react";
 
-import RAPIER from "@dimforge/rapier3d-compat";
-
 import {
   createSimulationSession,
 } from "./scene/createSimulationSession.js";
 
-let rapierInitializationPromise =
-  null;
+let rapierInitializationPromise = null;
+
+function normalizeError(error) {
+  if (error instanceof Error) {
+    return error;
+  }
+
+  return new Error(String(error));
+}
 
 function initializeRapier() {
   if (!rapierInitializationPromise) {
-    rapierInitializationPromise =
-      RAPIER.init();
+    rapierInitializationPromise = import(
+      "@dimforge/rapier3d-compat"
+    )
+      .then(async (module) => {
+        const RAPIER =
+          module.default ?? module;
+
+        await RAPIER.init();
+
+        return RAPIER;
+      })
+      .catch((error) => {
+        rapierInitializationPromise =
+          null;
+
+        throw error;
+      });
   }
 
   return rapierInitializationPromise;
@@ -28,15 +48,16 @@ export default function BasicScene({
   onAudioReady,
   onMissionReady,
   onPerformance,
+  onAssetWarning,
+  onFatalError,
 }) {
-  const containerRef =
-    useRef(null);
+  const containerRef = useRef(null);
 
-  const difficultyRef =
-    useRef(selectedDifficulty);
+  const difficultyRef = useRef(
+    selectedDifficulty
+  );
 
-  const callbacksRef =
-    useRef({});
+  const callbacksRef = useRef({});
 
   useEffect(() => {
     difficultyRef.current =
@@ -50,6 +71,8 @@ export default function BasicScene({
       onAudioReady,
       onMissionReady,
       onPerformance,
+      onAssetWarning,
+      onFatalError,
     };
   }, [
     onTelemetry,
@@ -57,6 +80,8 @@ export default function BasicScene({
     onAudioReady,
     onMissionReady,
     onPerformance,
+    onAssetWarning,
+    onFatalError,
   ]);
 
   useEffect(() => {
@@ -79,7 +104,7 @@ export default function BasicScene({
       });
 
     initializeRapier()
-      .then(() => {
+      .then((RAPIER) => {
         if (cancelled) {
           return;
         }
@@ -95,31 +120,60 @@ export default function BasicScene({
             isCancelled: () =>
               cancelled,
 
-            onTelemetry: (value) =>
+            onTelemetry: (value) => {
               callbacksRef.current
-                .onTelemetry?.(value),
+                .onTelemetry?.(value);
+            },
 
-            onLoadingState: (value) =>
+            onLoadingState: (
+              value
+            ) => {
               callbacksRef.current
                 .onLoadingState?.(
                   value
-                ),
+                );
+            },
 
-            onAudioReady: (value) =>
+            onAudioReady: (value) => {
               callbacksRef.current
-                .onAudioReady?.(value),
+                .onAudioReady?.(value);
+            },
 
-            onMissionReady: (value) =>
+            onMissionReady: (
+              value
+            ) => {
               callbacksRef.current
                 .onMissionReady?.(
                   value
-                ),
+                );
+            },
 
-            onPerformance: (value) =>
+            onPerformance: (
+              value
+            ) => {
               callbacksRef.current
                 .onPerformance?.(
                   value
-                ),
+                );
+            },
+
+            onAssetWarning: (
+              value
+            ) => {
+              callbacksRef.current
+                .onAssetWarning?.(
+                  value
+                );
+            },
+
+            onFatalError: (error) => {
+              callbacksRef.current
+                .onFatalError?.(
+                  normalizeError(
+                    error
+                  )
+                );
+            },
           });
       })
       .catch((error) => {
@@ -127,9 +181,12 @@ export default function BasicScene({
           return;
         }
 
+        const normalizedError =
+          normalizeError(error);
+
         console.error(
           "Simulation initialization failed:",
-          error
+          normalizedError
         );
 
         callbacksRef.current
@@ -139,12 +196,20 @@ export default function BasicScene({
             message:
               "Could not start simulation",
           });
+
+        callbacksRef.current
+          .onFatalError?.(
+            normalizedError
+          );
       });
 
     return () => {
       cancelled = true;
 
       disposeSession?.();
+
+      callbacksRef.current
+        .onAudioReady?.(null);
 
       callbacksRef.current
         .onMissionReady?.(null);

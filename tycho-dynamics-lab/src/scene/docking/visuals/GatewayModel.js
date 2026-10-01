@@ -1,5 +1,7 @@
 import * as THREE from "three";
-import { loadGLTFModel } from "../../loaders/loadGLTFModel";
+import {
+  loadGLTFModel,
+} from "../../loaders/loadGLTFModel.js";
 import { disposeObject3D } from "../../utils/disposeObject3D.js";
 
 
