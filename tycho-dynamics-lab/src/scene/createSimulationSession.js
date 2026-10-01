@@ -132,6 +132,8 @@ export function createSimulationSession({
   onAudioReady,
   onMissionReady,
   onPerformance,
+  onAssetWarning,
+  onFatalError,
 }) {
   const disposal =
     createDisposalStack();
@@ -161,9 +163,19 @@ export function createSimulationSession({
     );
 
     const environment =
-      createSceneEnvironment(
-        container
-      );
+    createSceneEnvironment(
+      container,
+      {
+        onContextLost(error) {
+          if (
+            !isCancelled() &&
+            !disposal.disposed
+          ) {
+            onFatalError?.(error);
+          }
+        },
+      }
+    );
 
     disposal.add(
       environment.dispose
@@ -297,20 +309,28 @@ export function createSimulationSession({
             }
 
             if (
-              state.status ===
-              "error"
+              state.status === "error"
             ) {
               console.warn(
                 "Orion loading failed:",
                 state.error
               );
-
+            
+              onAssetWarning?.({
+                id: "orion-model",
+                title:
+                  "ORION MODEL UNAVAILABLE",
+                message:
+                  "The detailed Orion model could not be loaded. The simulation is using its primitive fallback.",
+              });
+            
               setLoadingState(
                 "loading",
                 88,
                 "Using fallback spacecraft"
               );
             }
+            
           },
         }
       );
@@ -388,20 +408,28 @@ export function createSimulationSession({
           }
 
           if (
-            state.status ===
-            "error"
+            state.status === "error"
           ) {
             console.warn(
               "Gateway loading failed:",
               state.error
             );
-
+          
+            onAssetWarning?.({
+              id: "gateway-model",
+              title:
+                "GATEWAY MODEL UNAVAILABLE",
+              message:
+                "The detailed Gateway model could not be loaded. The simulation is using its primitive fallback.",
+            });
+          
             setLoadingState(
               "loading",
               92,
               "Using primitive station"
             );
           }
+          
         },
       });
 

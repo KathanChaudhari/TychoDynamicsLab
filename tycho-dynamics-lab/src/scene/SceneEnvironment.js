@@ -1,8 +1,22 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { disposeObject3D } from "./utils/disposeObject3D.js";
 
-export function createSceneEnvironment(container) {
+import {
+  OrbitControls,
+} from "three/addons/controls/OrbitControls.js";
+
+import {
+  disposeObject3D,
+} from "./utils/disposeObject3D.js";
+
+export function createSceneEnvironment(
+  container,
+  options = {}
+) {
+  const {
+    onContextLost,
+    onContextRestored,
+  } = options;
+
   const width = Math.max(
     container.clientWidth,
     1
@@ -13,52 +27,126 @@ export function createSceneEnvironment(container) {
     1
   );
 
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x030712);
+  const scene =
+    new THREE.Scene();
 
+  scene.background =
+    new THREE.Color(
+      0x030712
+    );
 
-  const camera = new THREE.PerspectiveCamera(
-    60,
-    width / height,
-    0.1,
-    2000
+  const camera =
+    new THREE.PerspectiveCamera(
+      60,
+      width / height,
+      0.1,
+      2000
+    );
+
+  camera.position.set(
+    7,
+    5,
+    10
   );
 
-  camera.position.set(7, 5, 10);
-  camera.lookAt(0, 0, -2);
+  camera.lookAt(
+    0,
+    0,
+    -2
+  );
 
+  let renderer;
 
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-  });
+  try {
+    renderer =
+      new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference:
+          "high-performance",
+      });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : String(error);
+  
+    throw new Error(
+      `WebGL renderer creation failed: ${message}`,
+      {
+        cause: error,
+      }
+    );
+  }
 
   let pixelRatio = Math.min(
     window.devicePixelRatio || 1,
     2
   );
 
-  renderer.setSize(width, height);
-  renderer.setPixelRatio(pixelRatio);
+  renderer.setSize(
+    width,
+    height
+  );
+
+  renderer.setPixelRatio(
+    pixelRatio
+  );
 
   renderer.outputColorSpace =
     THREE.SRGBColorSpace;
 
-  container.appendChild(renderer.domElement);
-
-
-  const controls = new OrbitControls(
-    camera,
+  container.appendChild(
     renderer.domElement
   );
+
+  function handleContextLost(
+    event
+  ) {
+    event.preventDefault();
+
+    onContextLost?.(
+      new Error(
+        "The WebGL graphics context was lost."
+      )
+    );
+  }
+
+  function handleContextRestored() {
+    onContextRestored?.();
+  }
+
+  renderer.domElement
+    .addEventListener(
+      "webglcontextlost",
+      handleContextLost,
+      false
+    );
+
+  renderer.domElement
+    .addEventListener(
+      "webglcontextrestored",
+      handleContextRestored,
+      false
+    );
+
+  const controls =
+    new OrbitControls(
+      camera,
+      renderer.domElement
+    );
 
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
   controls.minDistance = 3;
   controls.maxDistance = 40;
 
-  controls.target.set(0, 0, -3);
-  controls.update();
+  controls.target.set(
+    0,
+    0,
+    -3
+  );
 
+  controls.update();
 
   const hemisphereLight =
     new THREE.HemisphereLight(
@@ -73,13 +161,16 @@ export function createSceneEnvironment(container) {
       3
     );
 
-  sunLight.position.set(5, 8, 6);
+  sunLight.position.set(
+    5,
+    8,
+    6
+  );
 
   scene.add(
     hemisphereLight,
     sunLight
   );
-
 
   const axesHelper =
     new THREE.AxesHelper(3);
@@ -92,7 +183,9 @@ export function createSceneEnvironment(container) {
       0x172033
     );
 
-  gridHelper.rotation.x = Math.PI / 2;
+  gridHelper.rotation.x =
+    Math.PI / 2;
+
   gridHelper.position.z = -7;
 
   scene.add(
@@ -100,9 +193,12 @@ export function createSceneEnvironment(container) {
     gridHelper
   );
 
-
-  function resizeRenderer(nextPixelRatio = pixelRatio) {
-    pixelRatio = nextPixelRatio;
+  function resizeRenderer(
+    nextPixelRatio =
+      pixelRatio
+  ) {
+    pixelRatio =
+      nextPixelRatio;
 
     const nextWidth =
       container.clientWidth;
@@ -118,15 +214,20 @@ export function createSceneEnvironment(container) {
     }
 
     camera.aspect =
-      nextWidth / nextHeight;
+      nextWidth /
+      nextHeight;
 
-    camera.updateProjectionMatrix();
+    camera
+      .updateProjectionMatrix();
+
+    renderer.setPixelRatio(
+      pixelRatio
+    );
 
     renderer.setSize(
       nextWidth,
       nextHeight
     );
-    renderer.setPixelRatio(pixelRatio);
   }
 
   function handleResize() {
@@ -139,21 +240,34 @@ export function createSceneEnvironment(container) {
   );
 
   function dispose() {
-    renderer.setAnimationLoop(null);
+    renderer.setAnimationLoop(
+      null
+    );
 
     window.removeEventListener(
       "resize",
       handleResize
     );
 
+    renderer.domElement
+      .removeEventListener(
+        "webglcontextlost",
+        handleContextLost
+      );
+
+    renderer.domElement
+      .removeEventListener(
+        "webglcontextrestored",
+        handleContextRestored
+      );
+
     controls.dispose();
-
     disposeObject3D(scene);
-
     renderer.dispose();
 
     if (
-      renderer.domElement.parentElement ===
+      renderer.domElement
+        .parentElement ===
       container
     ) {
       container.removeChild(
